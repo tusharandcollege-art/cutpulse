@@ -57,14 +57,14 @@ export default function ImageToVideoPage() {
         }
 
         const msgId = Date.now().toString()
-        setUploading(true)
-        const imageBlob = await base64ToBlob(image)
-        const imageUrl = await uploadToFirebase(imageBlob, 'images')
-        setUploading(false)
         setMessages(prev => [...prev, { id: msgId, prompt: prompt || '(image motion)', imagePreview: image, status: 'generating', cost }])
         save({ id: msgId, prompt: prompt || '(image motion)', mode: 'image_to_video', model, ratio, duration, cost, videoUrl: '', createdAt: new Date().toISOString(), status: 'pending' })
         setPrompt('')
         try {
+            setUploading(true)
+            const imageBlob = await base64ToBlob(image)
+            const imageUrl = await uploadToFirebase(imageBlob, 'images')
+            setUploading(false)
             const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths: [imageUrl], model, ratio, duration, functionMode: 'image_to_video' }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
@@ -94,6 +94,7 @@ export default function ImageToVideoPage() {
             }
             await poll()
         } catch (e: unknown) {
+            setUploading(false)
             const errMsg = e instanceof Error ? e.message : 'Error'
             setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'error', error: errMsg } : m))
             update(msgId, { status: 'error', error: errMsg })

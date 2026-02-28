@@ -53,22 +53,21 @@ export default function FramesToVideoPage() {
             return
         }
         const msgId = Date.now().toString()
-        setUploading(true)
-
-        const [f1Blob, f2Blob] = await Promise.all([
-            base64ToBlob(frame1),
-            frame2 ? base64ToBlob(frame2) : Promise.resolve(null),
-        ])
-        const [f1Url, f2Url] = await Promise.all([
-            uploadToFirebase(f1Blob, 'images'),
-            f2Blob ? uploadToFirebase(f2Blob, 'images') : Promise.resolve(null),
-        ])
-        setUploading(false)
-        const filePaths = f2Url ? [f1Url, f2Url] : [f1Url]
         setMessages(prev => [...prev, { id: msgId, frame1, frame2: frame2 || undefined, prompt, status: 'generating', cost }])
         save({ id: msgId, prompt, mode: 'frames_to_video', model, ratio, duration, cost, videoUrl: '', createdAt: new Date().toISOString(), status: 'pending' })
         setPrompt('')
         try {
+            setUploading(true)
+            const [f1Blob, f2Blob] = await Promise.all([
+                base64ToBlob(frame1),
+                frame2 ? base64ToBlob(frame2) : Promise.resolve(null),
+            ])
+            const [f1Url, f2Url] = await Promise.all([
+                uploadToFirebase(f1Blob, 'images'),
+                f2Blob ? uploadToFirebase(f2Blob, 'images') : Promise.resolve(null),
+            ])
+            setUploading(false)
+            const filePaths = f2Url ? [f1Url, f2Url] : [f1Url]
             const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths, model, ratio, duration, functionMode: 'frames_to_video' }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
@@ -96,6 +95,7 @@ export default function FramesToVideoPage() {
             }
             await poll()
         } catch (e: unknown) {
+            setUploading(false)
             const errMsg = e instanceof Error ? e.message : 'Error'
             setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'error', error: errMsg } : m))
             update(msgId, { status: 'error', error: errMsg })

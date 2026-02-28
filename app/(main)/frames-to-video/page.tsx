@@ -50,8 +50,8 @@ export default function FramesToVideoPage() {
         setUploading(true)
 
         const [f1Url, f2Url] = await Promise.all([
-            uploadToFirebase(frame1, 'images'),
-            frame2 ? uploadToFirebase(frame2, 'images') : Promise.resolve(null),
+            uploadToFirebase(frame1 as unknown as File, 'images'),
+            frame2 ? uploadToFirebase(frame2 as unknown as File, 'images') : Promise.resolve(null),
         ])
         setUploading(false)
         const filePaths = f2Url ? [f1Url, f2Url] : [f1Url]

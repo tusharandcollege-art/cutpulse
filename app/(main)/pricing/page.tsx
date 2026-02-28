@@ -192,9 +192,9 @@ export default function PricingPage() {
                     price: amount,
                     currency: currency,
                     points: plan.points,
-                    customer_id: user.uid,
-                    customer_name: user.displayName,
-                    customer_email: user.email
+                    customer_id: user?.uid || 'anonymous',
+                    customer_name: user?.displayName || 'User',
+                    customer_email: user?.email || 'no-email@example.com'
                 })
             })
 
@@ -228,7 +228,7 @@ export default function PricingPage() {
 
                     if (verifyRes.ok && verifyData.success) {
                         // 5. Grant Points
-                        await purchasePlanCredit(user.uid, plan.name, plan.points)
+                        await purchasePlanCredit(user?.uid || 'anonymous', plan.name, plan.points)
                         toast(`Payment Successful! 🎉 ${plan.points.toLocaleString()} pts added.`, 'success')
                     } else {
                         toast(verifyData.message || 'Verification failed. Contact support.', 'error')

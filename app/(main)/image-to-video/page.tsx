@@ -52,7 +52,7 @@ export default function ImageToVideoPage() {
 
         const msgId = Date.now().toString()
         setUploading(true)
-        const imageUrl = await uploadToFirebase(image, 'images')
+        const imageUrl = await uploadToFirebase(image as unknown as File, 'images')
         setUploading(false)
         setMessages(prev => [...prev, { id: msgId, prompt: prompt || '(image motion)', imagePreview: image, status: 'generating', cost }])
         save({ id: msgId, prompt: prompt || '(image motion)', mode: 'image_to_video', model, ratio, duration, cost, videoUrl: '', createdAt: new Date().toISOString(), status: 'pending' })

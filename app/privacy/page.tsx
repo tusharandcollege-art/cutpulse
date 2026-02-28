@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export default function PrivacyPolicy() {
     return (
-        <div className="min-h-screen overflow-y-auto p-8 sm:p-20 font-[family-name:var(--font-geist-sans)]" style={{ background: 'var(--bg-main)', color: 'var(--text)' }}>
+        <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', padding: '32px 80px', background: 'var(--bg)', color: 'var(--text)' }}>
             <div className="max-w-3xl mx-auto">
                 <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all mb-10" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                     ← Back to Home

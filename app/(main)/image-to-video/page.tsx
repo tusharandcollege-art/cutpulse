@@ -29,6 +29,12 @@ export default function ImageToVideoPage() {
     const [focused, setFocused] = useState(false)
     const chatRef = useRef<HTMLDivElement>(null)
     const textaRef = useRef<HTMLTextAreaElement>(null)
+    // Convert base64 data URL → Blob so FormData sends a real file not a string
+    const base64ToBlob = async (dataUrl: string): Promise<Blob> => {
+        const res = await fetch(dataUrl)
+        return res.blob()
+    }
+
     const { save, update } = useVideoStore()
     const { notify, requestPermission } = useNotification()
     const { deductPoints, points } = usePoints()
@@ -52,7 +58,8 @@ export default function ImageToVideoPage() {
 
         const msgId = Date.now().toString()
         setUploading(true)
-        const imageUrl = await uploadToFirebase(image as unknown as File, 'images')
+        const imageBlob = await base64ToBlob(image)
+        const imageUrl = await uploadToFirebase(imageBlob, 'images')
         setUploading(false)
         setMessages(prev => [...prev, { id: msgId, prompt: prompt || '(image motion)', imagePreview: image, status: 'generating', cost }])
         save({ id: msgId, prompt: prompt || '(image motion)', mode: 'image_to_video', model, ratio, duration, cost, videoUrl: '', createdAt: new Date().toISOString(), status: 'pending' })

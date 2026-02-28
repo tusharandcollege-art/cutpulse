@@ -194,7 +194,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div style={{ height: '100%', overflowY: 'auto' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 24px 40px' }}>
 
                 {/* Header */}

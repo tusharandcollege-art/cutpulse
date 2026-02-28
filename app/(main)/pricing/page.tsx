@@ -250,7 +250,7 @@ export default function PricingPage() {
     }
 
     return (
-        <div className="h-full overflow-y-auto px-6 pb-10 pt-8 relative">
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '32px 24px 40px', position: 'relative' }}>
 
             {/* Payment Method Modal */}
             {selectedPlan && (

@@ -32,6 +32,12 @@ export default function FramesToVideoPage() {
 
     const readFile = (f: File): Promise<string> => new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target?.result as string); r.readAsDataURL(f) })
 
+    // Convert base64 data URL → Blob so FormData sends a real file not a string
+    const base64ToBlob = async (dataUrl: string): Promise<Blob> => {
+        const res = await fetch(dataUrl)
+        return res.blob()
+    }
+
     const { save, update } = useVideoStore()
     const { notify } = useNotification()
     const { deductPoints, points } = usePoints()
@@ -49,9 +55,13 @@ export default function FramesToVideoPage() {
         const msgId = Date.now().toString()
         setUploading(true)
 
+        const [f1Blob, f2Blob] = await Promise.all([
+            base64ToBlob(frame1),
+            frame2 ? base64ToBlob(frame2) : Promise.resolve(null),
+        ])
         const [f1Url, f2Url] = await Promise.all([
-            uploadToFirebase(frame1 as unknown as File, 'images'),
-            frame2 ? uploadToFirebase(frame2 as unknown as File, 'images') : Promise.resolve(null),
+            uploadToFirebase(f1Blob, 'images'),
+            f2Blob ? uploadToFirebase(f2Blob, 'images') : Promise.resolve(null),
         ])
         setUploading(false)
         const filePaths = f2Url ? [f1Url, f2Url] : [f1Url]

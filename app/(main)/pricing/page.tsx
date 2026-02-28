@@ -250,7 +250,7 @@ export default function PricingPage() {
     }
 
     return (
-        <div className="min-h-full overflow-y-auto px-6 pb-10 pt-8 relative">
+        <div className="h-full overflow-y-auto px-6 pb-10 pt-8 relative">
 
             {/* Payment Method Modal */}
             {selectedPlan && (

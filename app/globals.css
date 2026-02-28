@@ -654,10 +654,10 @@ body {
         justify-content: space-between;
     }
 
-    /* ── 8. Dropdowns — anchor to right edge so they don't overflow left ── */
+    /* ── 8. Dropdowns — anchor LEFT so they open rightward, capped to screen ── */
     .dropdown {
-        left: auto;
-        right: 0;
+        left: 0;
+        right: auto;
         transform: none;
         min-width: 180px;
         max-width: calc(100vw - 24px);
@@ -668,8 +668,17 @@ body {
         grid-template-columns: 1fr !important;
     }
 
-    /* ── 10. Prevent horizontal overflow ───────────────────────────── */
-    * {
+    /* ── 10. Prevent horizontal overflow (targeted, not universal) ────── */
+    /* Don't use * { max-width: 100% } — it breaks popup menus */
+    img,
+    video,
+    iframe {
+        max-width: 100%;
+    }
+
+    .gen-card,
+    .pricing-grid,
+    .message-bubble {
         max-width: 100%;
     }
 

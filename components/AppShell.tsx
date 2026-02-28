@@ -188,8 +188,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                                     <>
                                         <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setShowUserMenu(false)} />
                                         <div style={{
-                                            position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50,
-                                            width: 220, background: 'var(--bg-card)', border: '1px solid var(--border)',
+                                            position: 'fixed', top: 52, right: 10, zIndex: 50,
+                                            width: 220, minWidth: 200, background: 'var(--bg-card)', border: '1px solid var(--border)',
                                             borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,.18)', overflow: 'hidden',
                                         }} className="animate-fadeIn">
                                             <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid var(--border)' }}>

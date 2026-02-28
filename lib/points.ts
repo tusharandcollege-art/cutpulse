@@ -14,7 +14,8 @@ const STARTER_POINTS = 200   // free points for every new account
 const HARDCODED_PROMOS: Record<string, number> = {
     'LAUNCH2026': 5000,
     'WELCOME500': 500,
-    'FREECUT': 2000
+    'FREECUT': 2000,
+    'CUTPULSE1K': 1000,
 }
 
 /* ── Ensure user document exists ─────────────────────────────────── */

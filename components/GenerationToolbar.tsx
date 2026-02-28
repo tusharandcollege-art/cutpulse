@@ -27,10 +27,10 @@ export const MODELS: { id: Model; name: string; color: string }[] = [
     { id: 'seedance_2.0', name: 'Seedance 2.0', color: '#7c7cf0' },
 ]
 
-export const RATIOS: { val: Ratio; label: string }[] = [
-    { val: '16:9', label: '16:9  Landscape' },
-    { val: '9:16', label: '9:16  Portrait' },
-    { val: '1:1', label: '1:1   Square' },
+export const RATIOS: { val: Ratio; label: string; short: string }[] = [
+    { val: '16:9', label: '16:9  Landscape', short: '16:9' },
+    { val: '9:16', label: '9:16  Portrait', short: '9:16' },
+    { val: '1:1', label: '1:1   Square', short: '1:1' },
 ]
 
 export const DURATIONS: Duration[] = [4, 5, 8, 10, 15]
@@ -55,7 +55,8 @@ export default function GenerationToolbar({
     const closeAll = () => { setOpenModel(false); setOpenRatio(false); setOpenDur(false) }
 
     const currentModel = MODELS.find(m => m.id === model)!
-    const ratioLabel = RATIOS.find(r => r.val === ratio)?.label ?? ratio
+    const ratioFull = RATIOS.find(r => r.val === ratio)?.label ?? ratio
+    const ratioShort = RATIOS.find(r => r.val === ratio)?.short ?? ratio
     const totalCost = calcCost(model, duration, hasVideoFiles)
     const rateNum = model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
     const rate = rateLabel(model, hasVideoFiles)
@@ -105,7 +106,8 @@ export default function GenerationToolbar({
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="2" y="2" width="20" height="20" rx="3" /><path d="M7 2v20" />
                         </svg>
-                        {ratioLabel}
+                        <span className="tb-ratio-full">{ratioFull}</span>
+                        <span className="tb-ratio-short">{ratioShort}</span>
                         <ChevronDown size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                     </button>
                     {openRatio && (
@@ -146,7 +148,7 @@ export default function GenerationToolbar({
             </div>
 
             {/* ── Right side — formula + cost badge + button ────── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <div className="tb-row-right" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
                 {/* Price formula — always visible */}
                 <div

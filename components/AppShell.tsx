@@ -256,10 +256,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </aside>
 
                 {/* ── Main ─────────────────────────────────────────────── */}
-                <main className="app-main flex flex-col h-full overflow-y-auto" style={{ height: 'calc(100vh - var(--header-h))' }}>
-                    <div className="flex-1">
-                        {children}
-                    </div>
+                <main className="app-main" style={{ height: 'calc(100vh - var(--header-h))' }}>
+                    {children}
                     <div className="mt-8">
                         <Footer />
                     </div>

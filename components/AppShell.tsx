@@ -117,10 +117,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     </Link>
 
                     <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
-                        {/* Live points badge — hidden on mobile (shown in settings) */}
+                        {/* Points badge — desktop: full, mobile: compact pill */}
                         <div className="hide-mobile">
                             <PointsBadge points={points} loading={ptsLoading} user={user} />
                         </div>
+                        {/* Mobile-only compact points badge */}
+                        {user && !ptsLoading && (
+                            <Link href="/pricing" className="show-mobile-only" style={{
+                                display: 'none', alignItems: 'center', gap: 4,
+                                padding: '4px 9px', borderRadius: 999,
+                                background: points < 100 ? 'rgba(239,68,68,.12)' : 'var(--indigo-light)',
+                                border: `1px solid ${points < 100 ? 'rgba(239,68,68,.3)' : 'rgba(99,102,241,.25)'}`,
+                                fontSize: 11, fontWeight: 800,
+                                color: points < 100 ? '#ef4444' : 'var(--indigo)',
+                                textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                            }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                                {points.toLocaleString()}
+                            </Link>
+                        )}
 
                         {/* Get More Points button */}
                         {user && points < 500 && !ptsLoading && (

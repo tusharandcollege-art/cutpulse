@@ -623,17 +623,20 @@ body {
         border-radius: 16px;
     }
 
-    /* ── 7. Toolbar — allow wrapping on small screens ─────────────── */
+    /* ── 7. Toolbar — two rows on mobile: selectors top, cost+btn bottom ─ */
     .tb-btn {
         padding: 4px 8px;
         font-size: 10px;
+        white-space: nowrap;
     }
 
-    /* ── 8. Dropdowns — anchor to bottom-center on mobile ─────────── */
+    /* ── 8. Dropdowns — anchor to right edge so they don't overflow left ── */
     .dropdown {
-        left: 50%;
-        transform: translateX(-50%);
-        min-width: 200px;
+        left: auto;
+        right: 0;
+        transform: none;
+        min-width: 180px;
+        max-width: calc(100vw - 24px);
     }
 
     /* ── 9. Pricing cards — single column on mobile ──────────────── */
@@ -651,6 +654,11 @@ body {
     input[type="email"] {
         font-size: 16px !important;
         /* prevent iOS zoom on focus */
+    }
+
+    /* ── Show-only-on-mobile utility ─────────────────────────────────── */
+    .show-mobile-only {
+        display: flex !important;
     }
 }
 

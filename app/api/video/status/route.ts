@@ -24,13 +24,28 @@ export async function POST(req: NextRequest) {
         const task = raw?.data ?? {}
         const status = task?.status ?? 'pending'
 
-        // xskill returns the video under result.output.video_url or result.video_url
+        console.log('[status] full task →', JSON.stringify(task, null, 2))
+
+        // xskill response: result.output.images = ["https://..."] (plain strings)
+        // OR result.output.video_url, result.output.videos[0].url, etc.
         const output = task?.result?.output ?? task?.result ?? {}
+
+        // Helper: extract URL whether the array element is a string or an object {url}
+        const extractFromArray = (arr: unknown): string | undefined => {
+            if (!Array.isArray(arr) || arr.length === 0) return undefined
+            const first = arr[0]
+            if (typeof first === 'string') return first          // plain string URL
+            if (first && typeof first === 'object' && 'url' in first) return (first as { url: string }).url
+            return undefined
+        }
+
         const videoUrl =
             output?.video_url ??
             output?.url ??
-            (Array.isArray(output?.videos) ? output.videos[0]?.url : undefined) ??
-            (Array.isArray(output?.images) ? output.images[0]?.url : undefined)
+            extractFromArray(output?.videos) ??
+            extractFromArray(output?.images) ??   // xskill puts video URL here as plain string!
+            extractFromArray(task?.result?.images) ??
+            task?.result?.video_url
 
         return NextResponse.json({
             data: {

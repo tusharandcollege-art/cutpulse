@@ -3,31 +3,32 @@ import { Cashfree, CFEnvironment } from "cashfree-pg";
 
 export async function POST(req: NextRequest) {
     try {
-        const { planId, planName, price, currency = 'USD', points, customer_id, customer_email, customer_phone, customer_name } = await req.json();
+        const { planId, planName, price, points, customer_id, customer_email, customer_phone, customer_name } = await req.json();
 
         if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
             return NextResponse.json({ error: 'Cashfree credentials missing in .env.local' }, { status: 500 });
         }
 
         const cashfreeEnvironment = process.env.CASHFREE_ENVIRONMENT === 'PRODUCTION' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX;
-
-        // In cashfree-pg v5+, Cashfree is instantiated using new Cashfree(ENV, APPID, SECRET)
         const cashfree = new Cashfree(cashfreeEnvironment as any, process.env.CASHFREE_APP_ID, process.env.CASHFREE_SECRET_KEY);
 
-        const order_id = `CF_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const order_id = `CF${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+        // Cashfree requires: customer_id alphanumeric only, phone 10 digits
+        const safeCustomerId = (customer_id || 'guest').replace(/[^a-zA-Z0-9]/g, '').slice(0, 50) || 'guest';
+        const safePhone = (customer_phone || '9876543210').replace(/\D/g, '').slice(-10).padStart(10, '9');
 
         const request = {
             order_amount: price,
-            order_currency: currency,
+            order_currency: 'INR', // Cashfree India only supports INR
             order_id: order_id,
             customer_details: {
-                customer_id: customer_id || "guest",
-                customer_phone: customer_phone || "9999999999",
-                customer_name: customer_name || "CutPulse User",
-                customer_email: customer_email || "no-reply@cutpulse.com"
+                customer_id: safeCustomerId,
+                customer_phone: safePhone,
+                customer_name: customer_name || 'CutPulse User',
+                customer_email: customer_email || 'user@cutpulse.com'
             },
             order_meta: {
-                // If using seamless/JS integration, this return_url is a fallback
                 return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/pricing?order_id={order_id}&status={order_status}`
             },
             order_tags: {

@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Palette, Sliders, Bell, Database, Info, Check, LogOut, Zap, Video, Gift, Copy } from 'lucide-react'
+import { User, Palette, Sliders, Bell, Database, Info, Check, LogOut, Zap, Video, Gift, Copy, ReceiptText, ChevronDown } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { usePoints } from '@/hooks/usePoints'
-import { doc, updateDoc } from 'firebase/firestore'
+import { doc, updateDoc, collection, query, orderBy, limit, getDocs, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore'
 import { updateProfile } from 'firebase/auth'
 import { db } from '@/lib/firebase'
 import { getOrGenerateReferralCode, applyPromoOrReferralCode } from '@/lib/points'
@@ -76,6 +76,145 @@ function Sel<T extends string>({ value, options, onChange }: { value: T; options
         }}>
             {options.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
         </select>
+    )
+}
+
+// ── Billing History Component ─────────────────────────────────
+interface TxEntry {
+    id: string
+    amount: number
+    type: 'credit' | 'debit'
+    mode: string
+    model: string
+    prompt?: string
+    createdAt: { seconds: number } | null
+}
+
+const MODE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+    plan_purchase: { label: '💳 Recharge', color: '#22c55e', bg: 'rgba(34,197,94,.1)' },
+    promo_code: { label: '🎁 Promo', color: '#a78bfa', bg: 'rgba(167,139,250,.1)' },
+    referral_bonus: { label: '🤝 Referral', color: '#60a5fa', bg: 'rgba(96,165,250,.1)' },
+    affiliate_commission: { label: '💰 Commission', color: '#f59e0b', bg: 'rgba(245,158,11,.1)' },
+    text_to_video: { label: '🎬 Text→Video', color: '#ef4444', bg: 'rgba(239,68,68,.08)' },
+    image_to_video: { label: '🖼 Image→Video', color: '#ef4444', bg: 'rgba(239,68,68,.08)' },
+    frames_to_video: { label: '🎞 Frames→Video', color: '#ef4444', bg: 'rgba(239,68,68,.08)' },
+    omni_reference: { label: '🌐 Omni Ref', color: '#ef4444', bg: 'rgba(239,68,68,.08)' },
+}
+
+function fmtDate(ts: { seconds: number } | null): string {
+    if (!ts) return '—'
+    return new Date(ts.seconds * 1000).toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true,
+    })
+}
+
+const PAGE = 10
+
+function BillingHistory({ uid }: { uid: string }) {
+    const [txs, setTxs] = useState<TxEntry[]>([])
+    const [loading, setLoading] = useState(true)
+    const [hasMore, setHasMore] = useState(false)
+    const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null)
+
+    const fetchPage = async (after: QueryDocumentSnapshot<DocumentData> | null = null) => {
+        setLoading(true)
+        try {
+            const ref = collection(db, 'users', uid, 'transactions')
+            const q = after
+                ? query(ref, orderBy('createdAt', 'desc'), startAfter(after), limit(PAGE))
+                : query(ref, orderBy('createdAt', 'desc'), limit(PAGE))
+            const snap = await getDocs(q)
+            const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as TxEntry))
+            setTxs(prev => after ? [...prev, ...docs] : docs)
+            setLastDoc(snap.docs[snap.docs.length - 1] ?? null)
+            setHasMore(snap.docs.length === PAGE)
+        } catch (e) { console.error('billing fetch', e) }
+        setLoading(false)
+    }
+
+    useEffect(() => { fetchPage() }, [uid])
+
+    return (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
+            {/* Header */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--indigo-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ReceiptText size={14} style={{ color: 'var(--indigo)' }} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>Billing & Transaction History</span>
+            </div>
+
+            {/* Table */}
+            {loading && txs.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>
+            ) : txs.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    No transactions yet. Generate a video or recharge to see history here.
+                </div>
+            ) : (
+                <>
+                    {/* Column headers */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px', padding: '8px 20px', borderBottom: '1px solid var(--border)', gap: 8 }}>
+                        {['Date / Type', 'Description', 'Points'].map(h => (
+                            <span key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .6 }}>{h}</span>
+                        ))}
+                    </div>
+
+                    {txs.map((tx, i) => {
+                        const meta = MODE_LABELS[tx.mode] ?? { label: tx.mode, color: 'var(--text-2)', bg: 'var(--bg-input)' }
+                        const isCredit = tx.type === 'credit'
+                        return (
+                            <div key={tx.id} style={{
+                                display: 'grid', gridTemplateColumns: '1fr 120px 80px',
+                                padding: '12px 20px', gap: 8, alignItems: 'center',
+                                borderBottom: i < txs.length - 1 ? '1px solid var(--border)' : 'none',
+                                background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)',
+                            }}>
+                                {/* Date + type */}
+                                <div>
+                                    <span style={{
+                                        display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                                        borderRadius: 6, marginBottom: 4, background: meta.bg, color: meta.color,
+                                    }}>{meta.label}</span>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(tx.createdAt)}</div>
+                                </div>
+
+                                {/* Description */}
+                                <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                    title={tx.prompt || tx.model}>
+                                    {tx.mode === 'plan_purchase' ? tx.model :
+                                        tx.mode === 'promo_code' ? `Code: ${tx.model}` :
+                                            tx.prompt?.slice(0, 40) || tx.model || '—'}
+                                </div>
+
+                                {/* Points */}
+                                <div style={{ fontSize: 13, fontWeight: 800, color: isCredit ? '#22c55e' : '#ef4444', textAlign: 'right' }}>
+                                    {isCredit ? '+' : '−'}{Math.abs(tx.amount).toLocaleString()} pts
+                                </div>
+                            </div>
+                        )
+                    })}
+
+                    {hasMore && (
+                        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                            <button
+                                onClick={() => fetchPage(lastDoc)}
+                                disabled={loading}
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
+                                    background: 'var(--bg-input)', color: 'var(--text-2)',
+                                    cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                                }}
+                            >
+                                <ChevronDown size={13} /> {loading ? 'Loading…' : 'Load More'}
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
     )
 }
 
@@ -397,6 +536,9 @@ export default function SettingsPage() {
                         </p>
                     </div>
                 </Section>
+
+                {/* ── Billing History ────────────────────────────────── */}
+                {user && <BillingHistory uid={user.uid} />}
 
                 {/* ── About ─────────────────────────────────────────── */}
                 <Section icon={Info} title="About CutPulse">

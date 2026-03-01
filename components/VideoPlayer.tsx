@@ -110,14 +110,18 @@ export default function VideoPlayer({ url, onDownload }: VideoPlayerProps) {
                 <video
                     ref={ref}
                     src={url}
-                    preload="auto"           // ← start buffering immediately
+                    preload="auto"
+                    autoPlay
+                    loop
                     className="w-full max-h-[440px] object-contain rounded-[20px]"
                     style={{
                         background: '#000',
-                        opacity: loaded ? 1 : 0,  // ← invisible until skeleton fades out
+                        opacity: loaded ? 1 : 0,
                         transition: 'opacity .4s ease',
                     }}
-                    onCanPlay={() => setLoaded(true)}     // ← first frame decoded → show it
+                    onCanPlay={() => setLoaded(true)}
+                    onLoadedData={() => setLoaded(true)}
+                    onError={() => setLoaded(true)}
                     onTimeUpdate={onTimeUpdate}
                     onEnded={() => setPlaying(false)}
                     playsInline
@@ -152,7 +156,8 @@ export default function VideoPlayer({ url, onDownload }: VideoPlayerProps) {
                                 </button>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => ref.current?.requestFullscreen()} className="ctrl-btn">
+                                <button onClick={() => window.open(url, '_blank')}
+                                    className="ctrl-btn" title="Open video directly">
                                     <Maximize size={14} color="#fff" />
                                 </button>
                                 <button

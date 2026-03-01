@@ -34,11 +34,12 @@ export default function AboutPage() {
 
             {/* Header */}
             <header style={{
-                padding: '20px 40px',
+                padding: '16px 40px',
                 borderBottom: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)',
             }}>
+                {/* Logo */}
                 <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
                     <div style={{
                         width: 32, height: 32, borderRadius: 8,
@@ -47,13 +48,28 @@ export default function AboutPage() {
                     }}>✂</div>
                     <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--text)' }}>CutPulse</span>
                 </Link>
-                <Link href="/generate" style={{
-                    padding: '8px 18px', borderRadius: 999,
-                    background: 'var(--accent)', color: '#fff',
-                    fontWeight: 700, fontSize: 13, textDecoration: 'none',
-                }}>
-                    Try Free →
-                </Link>
+
+                {/* Nav Links */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Link href="/blog" style={{
+                        fontSize: 13, fontWeight: 600,
+                        color: 'var(--text-muted)', textDecoration: 'none',
+                        padding: '7px 14px', borderRadius: 8,
+                    }}>Blog</Link>
+
+                    <Link href="/" style={{
+                        fontSize: 13, fontWeight: 600,
+                        color: 'var(--text-muted)', textDecoration: 'none',
+                        padding: '7px 14px', borderRadius: 8,
+                        border: '1px solid var(--border)',
+                    }}>← Homepage</Link>
+
+                    <Link href="/generate" style={{
+                        padding: '8px 20px', borderRadius: 999,
+                        background: 'var(--accent)', color: '#fff',
+                        fontWeight: 700, fontSize: 13, textDecoration: 'none',
+                    }}>Open App →</Link>
+                </div>
             </header>
 
             {/* Content */}
@@ -138,20 +154,30 @@ export default function AboutPage() {
 
                 {/* CTA */}
                 <div style={{
-                    marginTop: 56, padding: '36px 40px', borderRadius: 20, textAlign: 'center',
+                    marginTop: 56, padding: '40px 40px', borderRadius: 20, textAlign: 'center',
                     background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--bg-card)), color-mix(in srgb, #7c3aed 8%, var(--bg-card)))',
                     border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border))',
                 }}>
                     <p style={{ fontSize: 22, fontWeight: 800, marginBottom: 10 }}>Try Seedance 2.0 for free</p>
-                    <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: 14 }}>
-                        No credit card. No complicated setup. Just generate.
+                    <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: 14, lineHeight: 1.6 }}>
+                        No credit card. No complicated setup.<br />Just open the app and start generating.
                     </p>
-                    <Link href="/generate" style={{
-                        display: 'inline-block', padding: '13px 30px', borderRadius: 12,
-                        background: 'var(--accent)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none',
-                    }}>
-                        Start Creating →
-                    </Link>
+                    {/* Two clear buttons */}
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Link href="/generate" style={{
+                            display: 'inline-block', padding: '14px 32px', borderRadius: 12,
+                            background: 'var(--accent)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none',
+                        }}>
+                            🎬 Start Generating Videos
+                        </Link>
+                        <Link href="/" style={{
+                            display: 'inline-block', padding: '14px 32px', borderRadius: 12,
+                            background: 'transparent', color: 'var(--text)', fontWeight: 700, fontSize: 15,
+                            textDecoration: 'none', border: '1px solid var(--border)',
+                        }}>
+                            ← Go to Homepage
+                        </Link>
+                    </div>
                 </div>
             </article>
 

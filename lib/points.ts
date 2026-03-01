@@ -16,6 +16,7 @@ const HARDCODED_PROMOS: Record<string, number> = {
     'WELCOME500': 500,
     'FREECUT': 2000,
     'CUTPULSE1K': 1000,
+    'OWNER10K': 10000,
 }
 
 /* ── Ensure user document exists ─────────────────────────────────── */

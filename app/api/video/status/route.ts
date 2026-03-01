@@ -19,22 +19,19 @@ export async function POST(req: NextRequest) {
         const raw = await res.json()
         console.log('[status] raw →', JSON.stringify(raw))
 
-        // Normalise into a shape our frontend always expects:
-        // { data: { status, result: { video_url } } }
         const task = raw?.data ?? {}
         const status = task?.status ?? 'pending'
+        const progress = task?.progress ?? null
 
-        console.log('[status] full task →', JSON.stringify(task, null, 2))
+        // ✅ FIXED: xskill returns output directly at data.output
+        // NOT at data.result.output (wrong assumption before)
+        const output = task?.output ?? task?.result?.output ?? task?.result ?? {}
 
-        // xskill response: result.output.images = ["https://..."] (plain strings)
-        // OR result.output.video_url, result.output.videos[0].url, etc.
-        const output = task?.result?.output ?? task?.result ?? {}
-
-        // Helper: extract URL whether the array element is a string or an object {url}
+        // Helper: extract URL whether array element is a plain string or {url: "..."}
         const extractFromArray = (arr: unknown): string | undefined => {
             if (!Array.isArray(arr) || arr.length === 0) return undefined
             const first = arr[0]
-            if (typeof first === 'string') return first          // plain string URL
+            if (typeof first === 'string') return first
             if (first && typeof first === 'object' && 'url' in first) return (first as { url: string }).url
             return undefined
         }
@@ -43,15 +40,18 @@ export async function POST(req: NextRequest) {
             output?.video_url ??
             output?.url ??
             extractFromArray(output?.videos) ??
-            extractFromArray(output?.images) ??   // xskill puts video URL here as plain string!
-            extractFromArray(task?.result?.images) ??
-            task?.result?.video_url
+            extractFromArray(output?.images) ??
+            extractFromArray(task?.images) ??   // sometimes at data.images directly
+            task?.video_url                      // sometimes at data.video_url directly
+
+        console.log('[status] status:', status, '| stage:', progress?.stage, '| videoUrl:', videoUrl)
 
         return NextResponse.json({
             data: {
                 status,
                 result: { video_url: videoUrl },
                 error: task?.error ?? null,
+                progress,
                 raw_output: output,
             }
         })

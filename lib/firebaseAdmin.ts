@@ -11,10 +11,6 @@ const {
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
 } = process.env
 
-// Derive the bucket name — Admin SDK needs the GCS bucket name.
-// New projects use: <project>.firebasestorage.app
-// Old projects use: <project>.appspot.com
-// We try both formats so it works regardless of when the project was created.
 const bucketName = NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
     ?? `${FIREBASE_PROJECT_ID}.firebasestorage.app`
 
@@ -23,7 +19,6 @@ if (!admin.apps.length) {
         credential: admin.credential.cert({
             projectId: FIREBASE_PROJECT_ID,
             clientEmail: FIREBASE_CLIENT_EMAIL,
-            // env vars escape newlines — restore them
             privateKey: FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
         }),
         storageBucket: bucketName,
@@ -31,4 +26,5 @@ if (!admin.apps.length) {
 }
 
 export const adminStorage = admin.storage().bucket()
+export const adminDb = admin.firestore()
 export const storageBucketName = bucketName

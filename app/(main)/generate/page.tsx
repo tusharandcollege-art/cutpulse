@@ -188,7 +188,7 @@ export default function GeneratePage() {
             if (textaRef.current) textaRef.current.style.height = 'auto'
         }
         try {
-            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text, model, ratio, duration, functionMode: 'text_to_video', filePaths: [] }) })
+            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text, model, ratio, duration, functionMode: 'text_to_video', filePaths: [], uid: user?.uid ?? null, cost }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
             if (!res.ok) throw new Error(data.error || 'Failed')

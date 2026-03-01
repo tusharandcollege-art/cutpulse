@@ -68,7 +68,7 @@ export default function FramesToVideoPage() {
             ])
             setUploading(false)
             const filePaths = f2Url ? [f1Url, f2Url] : [f1Url]
-            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths, model, ratio, duration, functionMode: 'frames_to_video' }) })
+            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths, model, ratio, duration, functionMode: 'frames_to_video', uid: user?.uid ?? null, cost }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
             if (!res.ok) throw new Error(data.error || 'Failed')

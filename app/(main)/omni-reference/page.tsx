@@ -9,6 +9,7 @@ import { uploadFile, deleteUploadedFiles } from '@/lib/uploadToFirebase'
 import { useVideoStore } from '@/hooks/useVideoStore'
 import { useNotification } from '@/hooks/useNotification'
 import { usePoints } from '@/hooks/usePoints'
+import { useAuth } from '@/hooks/useAuth'
 
 type MsgStatus = 'generating' | 'uploading' | 'completed' | 'error'
 interface Message {
@@ -34,6 +35,7 @@ export default function OmniReferencePage() {
     const chatRef = useRef<HTMLDivElement>(null)
     const textaRef = useRef<HTMLTextAreaElement>(null)
     const { save, update } = useVideoStore()
+    const { user } = useAuth()
     const { notify } = useNotification()
     const { deductPoints } = usePoints()
 
@@ -150,7 +152,7 @@ export default function OmniReferencePage() {
             const res = await fetch('/api/video/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: text, image_files: imageUrls, video_files: videoUrls, model, ratio, duration, functionMode: 'omni_reference' }),
+                body: JSON.stringify({ prompt: text, image_files: imageUrls, video_files: videoUrls, model, ratio, duration, functionMode: 'omni_reference', uid: user?.uid ?? null, cost }),
             })
             if (res.status === 429) throw new Error('Rate limited - please wait 30 seconds and try again')
             const data = await res.json()

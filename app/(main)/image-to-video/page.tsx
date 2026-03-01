@@ -65,7 +65,7 @@ export default function ImageToVideoPage() {
             const imageBlob = await base64ToBlob(image)
             const imageUrl = await uploadToFirebase(imageBlob, 'images')
             setUploading(false)
-            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths: [imageUrl], model, ratio, duration, functionMode: 'image_to_video' }) })
+            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths: [imageUrl], model, ratio, duration, functionMode: 'image_to_video', uid: user?.uid ?? null, cost }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
             if (!res.ok) throw new Error(data.error || 'Failed')

@@ -73,9 +73,17 @@ export default function FramesToVideoPage() {
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
             if (!res.ok) throw new Error(data.error || 'Failed')
             update(msgId, { taskId: data.task_id })
-            const poll = async () => {
+            // Adaptive poll: 5s for first 2 min, 20s after (saves API calls for long generations)
+            const pollStart = Date.now()
+            let done = false
+            while (!done) {
+                const elapsed = Date.now() - pollStart
+                const interval = elapsed < 2 * 60 * 1000 ? 5_000 : 20_000
+                await new Promise(r => setTimeout(r, interval))
+
                 const s = await fetch('/api/video/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: data.task_id }) }).then(r => r.json())
                 const st = s?.data?.status
+
                 if (st === 'completed' || st === 'success') {
                     const videoUrl = s?.data?.result?.video_url
                     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'completed', videoUrl } : m))
@@ -83,6 +91,7 @@ export default function FramesToVideoPage() {
                     notify('✅ Video Ready — CutPulse', prompt || 'Frame transition complete')
                     await deductPoints(cost, { mode: 'frames_to_video', model, duration, prompt })
                     toast('✅ Video ready!', 'success')
+                    done = true
                 } else if (st === 'failed' || st === 'error') {
                     const errObj = s?.data?.error
                     const errStr = typeof errObj === 'string' ? errObj : JSON.stringify(errObj || '')
@@ -91,9 +100,9 @@ export default function FramesToVideoPage() {
                         throw new Error('Video did not pass safety review (points deducted).')
                     }
                     throw new Error(errObj?.message || errStr || 'Failed')
-                } else { await new Promise(r => setTimeout(r, 3000)); await poll() }
+                }
+                // else: still processing → loop again
             }
-            await poll()
         } catch (e: unknown) {
             setUploading(false)
             const errMsg = e instanceof Error ? e.message : 'Error'

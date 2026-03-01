@@ -163,15 +163,24 @@ export default function OmniReferencePage() {
             // xskill already has the URLs queued — these files are no longer needed.
             deleteUploadedFiles(uploadResults.map(r => ({ publicId: r.publicId, resourceType: r.resourceType })))
 
-            const poll = async () => {
+            // Adaptive poll: 5s for first 2 min, 20s after (saves API calls for long generations)
+            const pollStart = Date.now()
+            let done = false
+            while (!done) {
+                const elapsed = Date.now() - pollStart
+                const interval = elapsed < 2 * 60 * 1000 ? 5_000 : 20_000
+                await new Promise(r => setTimeout(r, interval))
+
                 const s = await fetch('/api/video/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: data.task_id }) }).then(r => r.json())
                 const st = s?.data?.status
+
                 if (st === 'completed' || st === 'success') {
                     const videoUrl = s?.data?.result?.video_url
                     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'completed', videoUrl } : m))
-                    update(msgId, { status: 'completed', videoUrl }) // update local store visually
+                    update(msgId, { status: 'completed', videoUrl })
                     notify('✅ Video Ready — CutPulse', text.slice(0, 60))
                     await deductPoints(cost)
+                    done = true
                 } else if (st === 'failed' || st === 'error') {
                     const errObj = s?.data?.error
                     const errStr = typeof errObj === 'string' ? errObj : JSON.stringify(errObj || '')
@@ -180,11 +189,9 @@ export default function OmniReferencePage() {
                         throw new Error('Video did not pass safety review (points deducted).')
                     }
                     throw new Error(errObj?.message || errStr || 'Generation failed')
-                } else {
-                    await new Promise(r => setTimeout(r, 3000)); await poll()
                 }
+                // else: still processing → loop again
             }
-            await poll()
         } catch (e: unknown) {
             setUploading(false)
             setUploadProgress(0)

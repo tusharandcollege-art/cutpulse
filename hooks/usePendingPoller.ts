@@ -52,7 +52,16 @@ async function pollOnce(taskId: string): Promise<string | null> {
 
 export function usePendingPoller({ videos, update, deductPoints }: Props) {
     useEffect(() => {
-        const pending = videos.filter(v => v.status === 'pending' && v.taskId)
+        // Only rescue "orphaned" tasks (tab was closed mid-generation).
+        // Fresh tasks (< 10 min old) are still being handled by the generate page's own poller.
+        // This prevents double-polling which wastes xskill API credits.
+        const TEN_MINUTES_MS = 10 * 60 * 1000
+        const now = Date.now()
+        const pending = videos.filter(v => {
+            if (v.status !== 'pending' || !v.taskId) return false
+            const age = now - new Date(v.createdAt ?? 0).getTime()
+            return age > TEN_MINUTES_MS
+        })
         if (!pending.length) return
 
         const controllers: AbortController[] = []

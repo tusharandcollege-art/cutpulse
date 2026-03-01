@@ -66,7 +66,7 @@ export default function AboutPage() {
 
                     <Link href="/generate" style={{
                         padding: '8px 20px', borderRadius: 999,
-                        background: 'var(--accent)', color: '#fff',
+                        background: '#6d28d9', color: '#ffffff',
                         fontWeight: 700, fontSize: 13, textDecoration: 'none',
                     }}>Open App →</Link>
                 </div>
@@ -123,6 +123,25 @@ export default function AboutPage() {
 
                     <p>No other model at this price point gives you what Seedance 2.0 gives you. That is our honest opinion after months of testing.</p>
 
+                    {/* Mid-article CTA 1 */}
+                    <div style={{ margin: '28px 0', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <Link href="/generate" style={{
+                            display: 'inline-block', padding: '12px 24px', borderRadius: 10,
+                            background: '#6d28d9', color: '#ffffff',
+                            fontWeight: 700, fontSize: 14, textDecoration: 'none',
+                        }}>
+                            🎬 Try Text to Video Free →
+                        </Link>
+                        <Link href="/image-to-video" style={{
+                            display: 'inline-block', padding: '12px 24px', borderRadius: 10,
+                            background: 'transparent', color: 'var(--text)',
+                            fontWeight: 700, fontSize: 14, textDecoration: 'none',
+                            border: '1px solid var(--border)',
+                        }}>
+                            🖼️ Try Image to Video →
+                        </Link>
+                    </div>
+
                     <h2>Who is CutPulse For?</h2>
 
                     <p>Honestly? Anyone in India who needs videos and doesn&apos;t want to spend thousands for it.</p>
@@ -130,6 +149,25 @@ export default function AboutPage() {
                     <p>Content creators who post daily. Small business owners who want product videos. Students making projects. Marketing people who need 10 videos not next month, this week.</p>
 
                     <p>If you have ₹200 and a decent idea, CutPulse with Seedance 2.0 can make something that looks like it cost 50x more. That&apos;s not marketing talk, we genuinely believe this.</p>
+
+                    {/* Mid-article CTA 2 */}
+                    <div style={{ margin: '28px 0', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <Link href="/generate" style={{
+                            display: 'inline-block', padding: '12px 24px', borderRadius: 10,
+                            background: '#6d28d9', color: '#ffffff',
+                            fontWeight: 700, fontSize: 14, textDecoration: 'none',
+                        }}>
+                            ✨ Start Creating for Free
+                        </Link>
+                        <Link href="/pricing" style={{
+                            display: 'inline-block', padding: '12px 24px', borderRadius: 10,
+                            background: 'transparent', color: 'var(--text)',
+                            fontWeight: 700, fontSize: 14, textDecoration: 'none',
+                            border: '1px solid var(--border)',
+                        }}>
+                            See Pricing →
+                        </Link>
+                    </div>
 
                     <h2>A Bit About Us</h2>
 
@@ -166,7 +204,7 @@ export default function AboutPage() {
                     <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                         <Link href="/generate" style={{
                             display: 'inline-block', padding: '14px 32px', borderRadius: 12,
-                            background: 'var(--accent)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none',
+                            background: '#6d28d9', color: '#ffffff', fontWeight: 800, fontSize: 15, textDecoration: 'none',
                         }}>
                             🎬 Start Generating Videos
                         </Link>

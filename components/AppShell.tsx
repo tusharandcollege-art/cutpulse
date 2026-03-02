@@ -2,15 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Scissors, Settings, Sparkles, Image, Film, Layers, PlaySquare, Sun, Moon, LogOut, ChevronDown, Zap } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { usePoints } from '@/hooks/usePoints'
 import { useVideoStore } from '@/hooks/useVideoStore'
 import AuthModal from '@/components/AuthModal'
+import PhoneModal from '@/components/PhoneModal'
 import { ToastProvider } from '@/components/ToastProvider'
 import Footer from '@/components/Footer'
+import { db } from '@/lib/firebase'
+import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 
 const activePolls = new Set<string>()
 
@@ -62,6 +65,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const [showModal, setShowModal] = useState(false)
     const [showUserMenu, setShowUserMenu] = useState(false)
+    const [showPhoneModal, setShowPhoneModal] = useState(false)
     const router = useRouter()
     const [postAuthRedirect, setPostAuthRedirect] = useState(false)
 
@@ -102,11 +106,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     // Count actively pending/generating videos
     const generatingCount = videos.filter(v => v.status === 'pending').length
 
+    // Keep a ref to the freshly signed-in user so handlePhoneSave can use it
+    // even before React re-renders with the updated `user` state
+    const signingUserRef = useRef<import('firebase/auth').User | null>(null)
+
     const handleSignIn = async () => {
         try {
-            await signIn()
+            const result = await signIn()
+            const freshUser = result.user
+            signingUserRef.current = freshUser
             setShowModal(false)
-            // If triggered by clicking Generate (not header button), send to pricing
+
+            // Check if this user already provided a phone number
+            const snap = await getDoc(doc(db, 'users', freshUser.uid))
+            const hasPhone = snap.exists() && snap.data()?.phone
+            if (!hasPhone) {
+                setShowPhoneModal(true)
+                return  // phone modal will handle the /pricing redirect
+            }
+
+            // Already has phone — redirect directly
             if (postAuthRedirect) {
                 setPostAuthRedirect(false)
                 router.push('/pricing')
@@ -114,10 +133,47 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         } catch { /* user cancelled */ }
     }
 
+    const handlePhoneSave = async (phone: string) => {
+        const freshUser = signingUserRef.current ?? user
+        if (!freshUser) return
+        try {
+            const ref = doc(db, 'users', freshUser.uid)
+            const snap = await getDoc(ref)
+            if (snap.exists()) {
+                await updateDoc(ref, { phone, phoneUpdatedAt: serverTimestamp() })
+            } else {
+                await setDoc(ref, { phone, uid: freshUser.uid, email: freshUser.email, name: freshUser.displayName, phoneUpdatedAt: serverTimestamp() }, { merge: true })
+            }
+        } catch { /* non-critical */ }
+        finally {
+            setShowPhoneModal(false)
+            if (postAuthRedirect) {
+                setPostAuthRedirect(false)
+                router.push('/pricing')
+            }
+        }
+    }
+
+    const handlePhoneSkip = () => {
+        setShowPhoneModal(false)
+        if (postAuthRedirect) {
+            setPostAuthRedirect(false)
+            router.push('/pricing')
+        }
+    }
+
     return (
         <ToastProvider>
             {/* ── Auth Modal ──────────────────────────────────────── */}
             {showModal && <AuthModal onSignIn={handleSignIn} onClose={() => setShowModal(false)} />}
+            {/* ── Phone Modal (shown once after new sign-up) ──────── */}
+            {showPhoneModal && user && (
+                <PhoneModal
+                    userName={user.displayName ?? 'there'}
+                    onSubmit={handlePhoneSave}
+                    onSkip={handlePhoneSkip}
+                />
+            )}
 
             <div className="app-shell">
                 {/* ── Header ──────────────────────────────────────────── */}

@@ -99,7 +99,7 @@ export default function AuthModal({ onSignIn, onClose }: Props) {
                             <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.3 35.4 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8H6.3C9.7 35.6 16.3 44 24 44z" />
                             <path fill="#1976D2" d="M43.6 20.2H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.6l6.2 5.2C41.5 36.6 44 30.8 44 24c0-1.3-.1-2.6-.4-3.8z" />
                         </svg>
-                        Continue with Google — It&apos;s Free
+                        Continue with Google
                     </button>
 
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 18, lineHeight: 1.6 }}>

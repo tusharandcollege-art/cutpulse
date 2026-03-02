@@ -249,6 +249,16 @@ export default function PricingPage() {
                         // 5. Grant Points
                         await purchasePlanCredit(user?.uid || 'anonymous', plan.name, plan.points)
                         toast(`Payment Successful! 🎉 ${plan.points.toLocaleString()} pts added.`, 'success')
+
+                        // 6. Fire Google Ads purchase conversion
+                        if (typeof window !== 'undefined' && (window as any).gtag) {
+                            ; (window as any).gtag('event', 'conversion', {
+                                send_to: 'AW-17985390147',
+                                value: billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice,
+                                currency: 'INR',
+                                transaction_id: data.order_id,
+                            })
+                        }
                     } else {
                         toast(verifyData.message || 'Verification failed. Contact support.', 'error')
                     }

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, Zap, Star, Crown, Building2, Gift, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ToastProvider'
 import { applyPromoOrReferralCode, purchasePlanCredit } from '@/lib/points'
 import { load } from '@cashfreepayments/cashfree-js'
+import { db } from '@/lib/firebase'
+import { doc, getDoc } from 'firebase/firestore'
 
 type Billing = 'monthly' | 'yearly'
 
@@ -155,14 +157,25 @@ function PlanCard({ plan, billing, onPurchase }: { plan: Plan; billing: Billing;
     )
 }
 
+
 export default function PricingPage() {
     const [billing, setBilling] = useState<Billing>('yearly')
     const { user, signIn } = useAuth()
     const { show: toast } = useToast()
     const [promo, setPromo] = useState('')
     const [promoStatus, setPromoStatus] = useState<{ msg: string, type: 'success' | 'error' } | null>(null)
-
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+    const [userPhone, setUserPhone] = useState<string>('')
+
+    // Fetch user's real phone number saved during sign-up
+    useEffect(() => {
+        if (!user) return
+        getDoc(doc(db, 'users', user.uid)).then(snap => {
+            const phone = snap.data()?.phone ?? ''
+            // Strip +91 — Cashfree needs 10 digits only
+            setUserPhone(phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10))
+        }).catch(() => { })
+    }, [user])
 
     const handlePurchase = (plan: Plan) => {
         if (!user) {
@@ -182,7 +195,7 @@ export default function PricingPage() {
         toast(`Initiating secure checkout for ${plan.name}...`, 'success')
 
         try {
-            // 1. Create order on our backend
+            // 1. Create order on our backend — send full customer details
             const res = await fetch('/api/payment/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -194,7 +207,8 @@ export default function PricingPage() {
                     points: plan.points,
                     customer_id: user?.uid || 'anonymous',
                     customer_name: user?.displayName || 'User',
-                    customer_email: user?.email || 'no-email@example.com'
+                    customer_email: user?.email || 'no-email@cutpulse.com',
+                    customer_phone: userPhone || '9999999999',  // real number from sign-up
                 })
             })
 

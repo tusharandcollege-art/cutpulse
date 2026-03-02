@@ -32,7 +32,7 @@ const PLANS: Plan[] = [
     {
         id: 'starter', name: 'Starter', icon: Zap,
         monthlyPrice: 9.99, yearlyPrice: 6.99,
-        inrPrice: 1, inrYearlyPrice: 1,   // ← TEST PRICE (change to 849 / 599 for production)
+        inrPrice: 849, inrYearlyPrice: 599,
         points: 7500, save: 36,
         color: '#6366f1',
         features: ['7,500 points/month', 'Seedance 2.0 Fast access', 'Text to Video', 'Image to Video', 'Basic support'],
@@ -70,8 +70,7 @@ const PLANS: Plan[] = [
 ]
 
 function PlanCard({ plan, billing, onPurchase }: { plan: Plan; billing: Billing; onPurchase: (plan: Plan) => void }) {
-    const price = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
-    const yearlyTotal = (plan.yearlyPrice * 12).toFixed(2)
+    const inrPrice = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
     const isHighlighted = plan.highlight || plan.bestValue
 
     return (
@@ -110,16 +109,16 @@ function PlanCard({ plan, billing, onPurchase }: { plan: Plan; billing: Billing;
             <div className="mb-1">
                 <div className="flex items-end gap-1">
                     <span className="text-4xl font-black" style={{ color: 'var(--text)' }}>
-                        ${price}
+                        ₹{inrPrice.toLocaleString('en-IN')}
                     </span>
                     <span className="text-sm mb-1.5 font-semibold" style={{ color: 'var(--text-muted)' }}>/mo</span>
                 </div>
                 {billing === 'yearly' ? (
                     <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>billed ${yearlyTotal}/year</span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>billed ₹{(plan.inrYearlyPrice * 12).toLocaleString('en-IN')}/year</span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-black"
                             style={{ background: '#22c55e18', color: '#22c55e', border: '1px solid #22c55e33' }}>
-                            Save ${plan.save}/yr
+                            Save ₹{plan.save}/yr
                         </span>
                     </div>
                 ) : (

@@ -24,12 +24,15 @@ interface Plan {
     bestValue?: boolean
     color: string
     features: string[]
+    inrPrice: number   // INR price shown and charged
+    inrYearlyPrice: number
 }
 
 const PLANS: Plan[] = [
     {
         id: 'starter', name: 'Starter', icon: Zap,
         monthlyPrice: 9.99, yearlyPrice: 6.99,
+        inrPrice: 1, inrYearlyPrice: 1,   // ← TEST PRICE (change to 849 / 599 for production)
         points: 7500, save: 36,
         color: '#6366f1',
         features: ['7,500 points/month', 'Seedance 2.0 Fast access', 'Text to Video', 'Image to Video', 'Basic support'],
@@ -37,6 +40,7 @@ const PLANS: Plan[] = [
     {
         id: 'popular', name: 'Popular', icon: Star,
         monthlyPrice: 29.99, yearlyPrice: 19.99,
+        inrPrice: 2549, inrYearlyPrice: 1699,
         points: 24000, save: 120,
         badge: '🔥 Most Popular',
         highlight: true,
@@ -46,6 +50,7 @@ const PLANS: Plan[] = [
     {
         id: 'pro', name: 'Pro', icon: Crown,
         monthlyPrice: 59.99, yearlyPrice: 39.99,
+        inrPrice: 4999, inrYearlyPrice: 3399,
         points: 45000, save: 240,
         badge: '⚡ Best for Creators',
         highlight: true,
@@ -55,6 +60,7 @@ const PLANS: Plan[] = [
     {
         id: 'enterprise', name: 'Enterprise', icon: Building2,
         monthlyPrice: 199, yearlyPrice: 139,
+        inrPrice: 16900, inrYearlyPrice: 11800,
         points: 200000, save: 720,
         bestValue: true,
         badge: '🏆 Best Value',
@@ -293,7 +299,10 @@ export default function PricingPage() {
                             </button>
 
                             <button
-                                onClick={() => processCheckout(selectedPlan, 'INR', Math.ceil((billing === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice) * 85))}
+                                onClick={() => {
+                                    const inrAmount = billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice
+                                    processCheckout(selectedPlan, 'INR', inrAmount)
+                                }}
                                 className="w-full relative flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200 group" style={{ borderColor: 'var(--border)', background: 'var(--bg-input)' }}
                                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#14b8a6'; e.currentTarget.style.background = 'rgba(20,184,166,0.05)' }}
                                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-input)' }}
@@ -303,9 +312,11 @@ export default function PricingPage() {
                                         Pay via UPI (India)
                                         <span className="text-[9px] px-1.5 py-0.5 rounded font-black whitespace-nowrap" style={{ background: '#14b8a618', border: '1px solid #14b8a644', color: '#14b8a6' }}>POPULAR</span>
                                     </div>
-                                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Zero forex fees</div>
+                                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>UPI / Net Banking / Cards — Zero forex fees</div>
                                 </div>
-                                <div className="font-black text-lg" style={{ color: 'var(--text)' }}>₹{Math.ceil((billing === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice) * 85).toLocaleString()}</div>
+                                <div className="font-black text-lg" style={{ color: 'var(--text)' }}>
+                                    ₹{(billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice).toLocaleString('en-IN')}
+                                </div>
                             </button>
                         </div>
                     </div>

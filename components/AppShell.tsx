@@ -147,10 +147,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         } catch { /* non-critical */ }
         finally {
             setShowPhoneModal(false)
-            if (postAuthRedirect) {
-                setPostAuthRedirect(false)
-                router.push('/pricing')
-            }
+            setPostAuthRedirect(false)
+            router.push('/pricing')  // always send to pricing after phone is saved
         }
     }
 

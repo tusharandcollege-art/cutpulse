@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, MessageCircle } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 
 interface Props {
     userName: string
     onSubmit: (phone: string) => void
-    onSkip: () => void
 }
 
-export default function PhoneModal({ userName, onSubmit, onSkip }: Props) {
+export default function PhoneModal({ userName, onSubmit }: Props) {
     const [phone, setPhone] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -18,7 +17,6 @@ export default function PhoneModal({ userName, onSubmit, onSkip }: Props) {
     useEffect(() => {
         setTimeout(() => inputRef.current?.focus(), 100)
     }, [])
-
     const validate = (val: string) => {
         const digits = val.replace(/\D/g, '')
         if (digits.length === 0) return 'Please enter your WhatsApp number'
@@ -46,9 +44,10 @@ export default function PhoneModal({ userName, onSubmit, onSkip }: Props) {
         <div
             style={{
                 position: 'fixed', inset: 0, zIndex: 9999,
-                background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(8px)',
+                background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(10px)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: 24,
+                // no onClick — clicking outside does nothing
             }}
             className="animate-fadeIn"
         >
@@ -63,17 +62,6 @@ export default function PhoneModal({ userName, onSubmit, onSkip }: Props) {
             >
                 {/* Top gradient bar */}
                 <div style={{ height: 4, background: 'linear-gradient(90deg, #25d366, #128c7e)' }} />
-
-                {/* Close */}
-                <button
-                    onClick={onSkip}
-                    style={{
-                        position: 'absolute', background: 'none', border: 'none', cursor: 'pointer',
-                        top: 20, right: 20, color: 'var(--text-muted)', padding: 4, borderRadius: 8,
-                    }}
-                >
-                    <X size={16} />
-                </button>
 
                 {/* Body */}
                 <div style={{ padding: '36px 32px 32px', textAlign: 'center' }}>
@@ -153,15 +141,6 @@ export default function PhoneModal({ userName, onSubmit, onSkip }: Props) {
                                     Save WhatsApp Number
                                 </>
                             )}
-                        </button>
-                        <button
-                            onClick={onSkip}
-                            style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                fontSize: 12, color: 'var(--text-muted)', padding: '6px',
-                            }}
-                        >
-                            Skip for now
                         </button>
                     </div>
 

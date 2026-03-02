@@ -155,11 +155,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     const handlePhoneSkip = () => {
-        setShowPhoneModal(false)
-        if (postAuthRedirect) {
-            setPostAuthRedirect(false)
-            router.push('/pricing')
-        }
+        // No skip allowed — user must enter phone
     }
 
     return (
@@ -171,7 +167,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <PhoneModal
                     userName={user.displayName ?? 'there'}
                     onSubmit={handlePhoneSave}
-                    onSkip={handlePhoneSkip}
                 />
             )}
 

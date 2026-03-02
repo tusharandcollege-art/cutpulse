@@ -2,8 +2,8 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function OldAffiliatePage() {
+export default function AffiliateRedirect() {
     const router = useRouter()
-    useEffect(() => { router.replace('/affiliate') }, [router])
+    useEffect(() => { router.replace('/affiliates') }, [router])
     return null
 }

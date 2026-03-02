@@ -297,7 +297,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                                                 >
                                                     <Settings size={14} /> Settings
                                                 </Link>
-                                                {user.email === 'likhitkatushar6@gmail.com' && (
+                                                {user.email === 'tuushar1likhitkar@gmail.com' && (
                                                     <Link href="/admin" onClick={() => setShowUserMenu(false)} style={{
                                                         display: 'flex', alignItems: 'center', gap: 10,
                                                         padding: '9px 16px', color: 'var(--indigo)', textDecoration: 'none',

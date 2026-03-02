@@ -10,7 +10,7 @@ import {
 } from '@/lib/affiliate'
 import { Users, TrendingUp, DollarSign, Clock, CheckCircle, X, Instagram, RefreshCw, ShieldCheck } from 'lucide-react'
 
-const ADMIN_EMAIL = 'likhitkatushar6@gmail.com'
+const ADMIN_EMAIL = 'tuushar1likhitkar@gmail.com'
 
 type Tab = 'overview' | 'users' | 'affiliates' | 'payouts'
 

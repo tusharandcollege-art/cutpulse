@@ -7,7 +7,8 @@ import { useToast } from '@/components/ToastProvider'
 import { applyPromoOrReferralCode, purchasePlanCredit } from '@/lib/points'
 import { load } from '@cashfreepayments/cashfree-js'
 import { db } from '@/lib/firebase'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { recordAffiliateCommission } from '@/lib/affiliate'
 
 type Billing = 'monthly' | 'yearly'
 
@@ -250,7 +251,30 @@ export default function PricingPage() {
                         await purchasePlanCredit(user?.uid || 'anonymous', plan.name, plan.points)
                         toast(`Payment Successful! 🎉 ${plan.points.toLocaleString()} pts added.`, 'success')
 
-                        // 6. Fire Google Ads purchase conversion
+                        // 6. Record purchase in Firestore (for admin dashboard)
+                        const inrAmount = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+                        await addDoc(collection(db, 'purchases'), {
+                            uid: user?.uid,
+                            planName: plan.name,
+                            amount: inrAmount,
+                            currency: 'INR',
+                            orderId: data.order_id,
+                            billing,
+                            createdAt: serverTimestamp(),
+                        }).catch(() => { })
+
+                        // 7. Pay 20% affiliate commission if user was referred
+                        if (user?.uid) {
+                            try {
+                                const userSnap = await getDoc(doc(db, 'users', user.uid))
+                                const referredBy = userSnap.data()?.referredBy
+                                if (referredBy) {
+                                    await recordAffiliateCommission(referredBy, user.uid, inrAmount)
+                                }
+                            } catch { /* non-critical */ }
+                        }
+
+                        // 8. Fire Google Ads purchase conversion
                         if (typeof window !== 'undefined' && (window as any).gtag) {
                             ; (window as any).gtag('event', 'conversion', {
                                 send_to: 'AW-17985390147/9usaCJPEkIEcEMOMjYBD',

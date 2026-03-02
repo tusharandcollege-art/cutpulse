@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { Scissors, Settings, Sparkles, Image, Film, Layers, PlaySquare, Sun, Moon, LogOut, ChevronDown, Zap } from 'lucide-react'
+import { Scissors, Settings, Sparkles, Image, Film, Layers, PlaySquare, Sun, Moon, LogOut, ChevronDown, Zap, Users, Link2 } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { usePoints } from '@/hooks/usePoints'
@@ -14,6 +14,7 @@ import { ToastProvider } from '@/components/ToastProvider'
 import Footer from '@/components/Footer'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { getAffiliateByCode, trackReferralSignup, getAffiliate } from '@/lib/affiliate'
 
 const activePolls = new Set<string>()
 
@@ -24,6 +25,7 @@ const nav = [
     { href: '/omni-reference', icon: Layers, label: 'All\nRound', mobileLabel: 'All-Round' },
     { href: '/my-videos', icon: PlaySquare, label: 'My\nVideos', mobileLabel: 'Videos' },
     { href: '/pricing', icon: Zap, label: 'Pricing', mobileLabel: 'Pricing' },
+    { href: '/affiliate', icon: Link2, label: 'Affiliate', mobileLabel: 'Affiliate' },
     { href: '/settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings' },
 ]
 
@@ -76,6 +78,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return () => window.removeEventListener('cutpulse:require-auth', handler)
     }, [])
 
+    // Capture ?ref=CODE from URL and store in localStorage for referral tracking
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const ref = params.get('ref')
+        if (ref) localStorage.setItem('cutpulse_ref', ref)
+    }, [])
+
     // Background video completion syncer (so users can close the browser and not lose generating videos)
     const { update } = useVideoStore()
     useEffect(() => {
@@ -119,8 +128,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             // Check if this user already provided a phone number
             const snap = await getDoc(doc(db, 'users', freshUser.uid))
-            const hasPhone = snap.exists() && snap.data()?.phone
-            if (!hasPhone) {
+            const isNewUser = !snap.exists() || !snap.data()?.phone
+
+            // If new user — check for referral code in localStorage
+            if (isNewUser) {
+                const refCode = localStorage.getItem('cutpulse_ref')
+                if (refCode) {
+                    try {
+                        const affiliate = await getAffiliateByCode(refCode)
+                        if (affiliate) {
+                            await trackReferralSignup(affiliate.uid, freshUser.uid)
+                        }
+                    } catch { /* non-critical */ }
+                    localStorage.removeItem('cutpulse_ref')
+                }
+            }
+
+            if (isNewUser) {
                 setShowPhoneModal(true)
                 return  // phone modal will handle the /pricing redirect
             }
@@ -273,6 +297,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                                                 >
                                                     <Settings size={14} /> Settings
                                                 </Link>
+                                                {user.email === 'likhitkatushar6@gmail.com' && (
+                                                    <Link href="/admin" onClick={() => setShowUserMenu(false)} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10,
+                                                        padding: '9px 16px', color: 'var(--indigo)', textDecoration: 'none',
+                                                        fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                                                    }}
+                                                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+                                                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                                                    >
+                                                        <Users size={14} /> Admin Dashboard
+                                                    </Link>
+                                                )}
                                                 <button onClick={() => { logOut(); setShowUserMenu(false) }} style={{
                                                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                                                     padding: '9px 16px', color: '#ef4444', background: 'none',

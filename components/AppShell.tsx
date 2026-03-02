@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { Scissors, Settings, Sparkles, Image, Film, Layers, PlaySquare, Sun, Moon, LogOut, ChevronDown, Zap, Users, Link2 } from 'lucide-react'
+import { Scissors, Settings, Sparkles, Image, Film, Layers, PlaySquare, Sun, Moon, LogOut, ChevronDown, Zap, Users } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { usePoints } from '@/hooks/usePoints'
@@ -25,7 +25,6 @@ const nav = [
     { href: '/omni-reference', icon: Layers, label: 'All\nRound', mobileLabel: 'All-Round' },
     { href: '/my-videos', icon: PlaySquare, label: 'My\nVideos', mobileLabel: 'Videos' },
     { href: '/pricing', icon: Zap, label: 'Pricing', mobileLabel: 'Pricing' },
-    { href: '/affiliate', icon: Link2, label: 'Affiliate', mobileLabel: 'Affiliate' },
     { href: '/settings', icon: Settings, label: 'Settings', mobileLabel: 'Settings' },
 ]
 

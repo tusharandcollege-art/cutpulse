@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebaseAdmin'
+import admin from 'firebase-admin'
 
 const API_KEY = process.env.XSKILL_API_KEY
 const BASE_URL = 'https://api.xskill.ai'
@@ -9,6 +10,23 @@ export async function POST(req: NextRequest) {
     try {
         if (!API_KEY) return NextResponse.json({ error: 'XSKILL_API_KEY not set' }, { status: 500 })
 
+        // ── 1. Verify Firebase Auth token ─────────────────────────────────────
+        const authHeader = req.headers.get('Authorization') ?? ''
+        const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+        if (!idToken) {
+            return NextResponse.json({ error: 'Authentication required. Please sign in.' }, { status: 401 })
+        }
+
+        let verifiedUid: string
+        try {
+            const decoded = await admin.auth().verifyIdToken(idToken)
+            verifiedUid = decoded.uid
+        } catch {
+            return NextResponse.json({ error: 'Invalid or expired session. Please sign in again.' }, { status: 401 })
+        }
+
+        // ── 2. Verify user has enough points ──────────────────────────────────
         const {
             prompt = '',
             model = 'seedance_2.0_fast',
@@ -18,9 +36,22 @@ export async function POST(req: NextRequest) {
             filePaths = [],
             image_files = [],
             video_files = [],
-            uid = null,        // ← user id for Firestore
-            cost = 0,          // ← points cost for billing record
+            cost = 0,
         } = await req.json()
+
+        if (cost > 0) {
+            const userSnap = await adminDb.collection('users').doc(verifiedUid).get()
+            if (!userSnap.exists) {
+                return NextResponse.json({ error: 'User account not found.' }, { status: 404 })
+            }
+            const currentPoints = userSnap.data()?.points ?? 0
+            if (currentPoints < cost) {
+                return NextResponse.json(
+                    { error: `Insufficient points — you need ${cost} pts but have ${currentPoints} pts. Please top up on the Pricing page.` },
+                    { status: 402 }
+                )
+            }
+        }
 
         // ─── Build inner params based on mode ──────────────────────────────
         const innerParams: Record<string, unknown> = {
@@ -50,7 +81,7 @@ export async function POST(req: NextRequest) {
             model: 'st-ai/super-seed2',
             params: innerParams,
             channel: null,
-            callback_url: `${APP_URL}/api/video/webhook`,   // ← xskill will POST here on completion
+            callback_url: `${APP_URL}/api/video/webhook`,
         }
 
         console.log('[create] payload →', JSON.stringify(payload, null, 2))
@@ -68,11 +99,11 @@ export async function POST(req: NextRequest) {
 
         const task_id = data?.data?.task_id ?? data?.task_id
 
-        // ─── Save task to Firestore (so webhook can find it) ─────────────────
+        // ─── Save task to Firestore ──────────────────────────────────────────
         if (task_id) {
             const taskRecord = {
                 task_id,
-                uid: uid ?? null,
+                uid: verifiedUid,
                 status: 'pending',
                 videoUrl: null,
                 prompt,
@@ -86,16 +117,11 @@ export async function POST(req: NextRequest) {
                 error: null,
             }
 
-            // Top-level for webhook lookup
             await adminDb.collection('videoTasks').doc(task_id).set(taskRecord)
-
-            // Also under user's subcollection for My Videos page
-            if (uid) {
-                await adminDb
-                    .collection('users').doc(uid)
-                    .collection('videos').doc(task_id)
-                    .set(taskRecord)
-            }
+            await adminDb
+                .collection('users').doc(verifiedUid)
+                .collection('videos').doc(task_id)
+                .set(taskRecord)
 
             console.log('[create] ✅ saved task to Firestore:', task_id)
         }
@@ -105,3 +131,4 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: e instanceof Error ? e.message : 'Server error' }, { status: 500 })
     }
 }
+

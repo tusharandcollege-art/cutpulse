@@ -48,11 +48,18 @@ export default function ImageToVideoPage() {
 
     const generate = useCallback(async () => {
         if (!image || isGenerating || uploading) return
-        const cost = calcCost(model, duration)
 
-        // Points gate
-        if (user && points < cost) {
-            toast(`Not enough points — need ${cost} pts, you have ${points} pts`, 'error')
+        // ── Auth gate ────────────────────────────────────────────────────────
+        if (!user) {
+            window.dispatchEvent(new CustomEvent('cutpulse:require-auth'))
+            toast('Please sign in to generate videos', 'error')
+            return
+        }
+
+        // ── Points gate ──────────────────────────────────────────────────────
+        const cost = calcCost(model, duration)
+        if (points < cost) {
+            toast(`Not enough points — need ${cost} pts, you have ${points} pts. Buy more on the Pricing page.`, 'error')
             return
         }
 
@@ -65,7 +72,8 @@ export default function ImageToVideoPage() {
             const imageBlob = await base64ToBlob(image)
             const imageUrl = await uploadToFirebase(imageBlob, 'images')
             setUploading(false)
-            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, filePaths: [imageUrl], model, ratio, duration, functionMode: 'image_to_video', uid: user?.uid ?? null, cost }) })
+            const idToken = await user.getIdToken()
+            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ prompt, filePaths: [imageUrl], model, ratio, duration, functionMode: 'image_to_video', cost }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
             if (!res.ok) throw new Error(data.error || 'Failed')

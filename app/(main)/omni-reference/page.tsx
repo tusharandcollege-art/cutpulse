@@ -10,6 +10,7 @@ import { useVideoStore } from '@/hooks/useVideoStore'
 import { useNotification } from '@/hooks/useNotification'
 import { usePoints } from '@/hooks/usePoints'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ToastProvider'
 
 type MsgStatus = 'generating' | 'uploading' | 'completed' | 'error'
 interface Message {
@@ -37,7 +38,8 @@ export default function OmniReferencePage() {
     const { save, update } = useVideoStore()
     const { user } = useAuth()
     const { notify } = useNotification()
-    const { deductPoints } = usePoints()
+    const { deductPoints, points } = usePoints()
+    const { show: toast } = useToast()
 
     const hasMessages = messages.length > 0
     const isGenerating = messages.some(m => m.status === 'generating' || m.status === 'uploading')
@@ -107,6 +109,14 @@ export default function OmniReferencePage() {
     const generate = useCallback(async (overridePrompt?: string) => {
         const text = (overridePrompt ?? prompt).trim()
         if (!text || isGenerating) return
+
+        // ── Auth gate ──────────────────────────────────────────────────────
+        if (!user) {
+            window.dispatchEvent(new CustomEvent('cutpulse:require-auth'))
+            toast('Please sign in to generate videos', 'error')
+            return
+        }
+
         const msgId = Date.now().toString()
         const cost = calcCost(model, duration, hasVideoFiles)
 

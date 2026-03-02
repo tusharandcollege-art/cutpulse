@@ -48,7 +48,15 @@ export default function FramesToVideoPage() {
     const generate = useCallback(async () => {
         if (!frame1 || isGenerating || uploading) return
         const cost = calcCost(model, duration)
-        if (user && points < cost) {
+
+        // ── Auth gate ────────────────────────────────────────────────────────
+        if (!user) {
+            window.dispatchEvent(new CustomEvent('cutpulse:require-auth'))
+            toast('Please sign in to generate videos', 'error')
+            return
+        }
+
+        if (points < cost) {
             toast(`Not enough points — need ${cost} pts, you have ${points} pts`, 'error')
             return
         }

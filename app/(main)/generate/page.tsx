@@ -167,10 +167,18 @@ export default function GeneratePage() {
         const text = (override ?? prompt).trim()
         if (!text || isGenerating) return
 
-        // Points gate
+        // ── Auth gate: must be signed in ─────────────────────────────────────
+        if (!user) {
+            // Fire a custom event so AppShell can open the AuthModal
+            window.dispatchEvent(new CustomEvent('cutpulse:require-auth'))
+            toast('Please sign in to generate videos', 'error')
+            return
+        }
+
+        // ── Points gate ──────────────────────────────────────────────────────
         const cost = calcCost(model, duration, false)
-        if (user && points < cost) {
-            toast(`Not enough points — need ${cost} pts, you have ${points} pts`, 'error')
+        if (points < cost) {
+            toast(`Not enough points — need ${cost} pts, you have ${points} pts. Buy more on the Pricing page.`, 'error')
             return
         }
 
@@ -188,7 +196,8 @@ export default function GeneratePage() {
             if (textaRef.current) textaRef.current.style.height = 'auto'
         }
         try {
-            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text, model, ratio, duration, functionMode: 'text_to_video', filePaths: [], uid: user?.uid ?? null, cost }) })
+            const idToken = await user.getIdToken()
+            const res = await fetch('/api/video/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ prompt: text, model, ratio, duration, functionMode: 'text_to_video', filePaths: [], cost }) })
             const data = await res.json()
             if (res.status === 429) throw new Error('Rate limited — please wait 30 seconds and try again')
             if (!res.ok) throw new Error(data.error || 'Failed')

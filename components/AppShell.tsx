@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Scissors, Settings, Sparkles, Image, Film, Layers, PlaySquare, Sun, Moon, LogOut, ChevronDown, Zap } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
@@ -62,6 +62,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const [showModal, setShowModal] = useState(false)
     const [showUserMenu, setShowUserMenu] = useState(false)
+    const router = useRouter()
+    const [postAuthRedirect, setPostAuthRedirect] = useState(false)
+
+    // Open auth modal whenever any page fires the require-auth event
+    useEffect(() => {
+        const handler = () => { setShowModal(true); setPostAuthRedirect(true) }
+        window.addEventListener('cutpulse:require-auth', handler)
+        return () => window.removeEventListener('cutpulse:require-auth', handler)
+    }, [])
 
     // Background video completion syncer (so users can close the browser and not lose generating videos)
     const { update } = useVideoStore()
@@ -94,7 +103,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const generatingCount = videos.filter(v => v.status === 'pending').length
 
     const handleSignIn = async () => {
-        try { await signIn(); setShowModal(false) } catch { /* user cancelled */ }
+        try {
+            await signIn()
+            setShowModal(false)
+            // If triggered by clicking Generate (not header button), send to pricing
+            if (postAuthRedirect) {
+                setPostAuthRedirect(false)
+                router.push('/pricing')
+            }
+        } catch { /* user cancelled */ }
     }
 
     return (

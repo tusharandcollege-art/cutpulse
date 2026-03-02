@@ -253,7 +253,7 @@ export default function PricingPage() {
                         // 6. Fire Google Ads purchase conversion
                         if (typeof window !== 'undefined' && (window as any).gtag) {
                             ; (window as any).gtag('event', 'conversion', {
-                                send_to: 'AW-17985390147/9usaCJPEkIEcEM0MjYED',
+                                send_to: 'AW-17985390147/9usaCJPEkIEcEMOMjYBD',
                                 value: billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice,
                                 currency: 'INR',
                                 transaction_id: data.order_id,

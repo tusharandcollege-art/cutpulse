@@ -93,8 +93,9 @@
     padding: 0;
 }
 
-html,
-body {
+/* Lock scroll only on main app pages that use the sidebar shell */
+html:has(.app-shell),
+html:has(.app-shell) body {
     height: 100%;
     overflow: hidden;
 }

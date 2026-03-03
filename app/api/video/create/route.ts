@@ -95,7 +95,13 @@ export async function POST(req: NextRequest) {
         const data = await res.json()
         console.log('[create] response →', JSON.stringify(data))
 
-        if (!res.ok) return NextResponse.json({ error: data?.message || 'xskill API error' }, { status: res.status })
+        if (!res.ok) {
+            console.error('[create] xskill error →', res.status, JSON.stringify(data))
+            return NextResponse.json(
+                { error: data?.message || data?.error || data?.msg || `xskill API error (${res.status})` },
+                { status: res.status }
+            )
+        }
 
         const task_id = data?.data?.task_id ?? data?.task_id
 

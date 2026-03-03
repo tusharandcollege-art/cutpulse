@@ -106,8 +106,8 @@ export default function AffiliatesPage() {
         if (!form.why.trim()) { toast('Tell us about your audience', 'error'); return }
         setSubmitting(true)
         try {
-            const code = await applyForAffiliate(user.uid, form)
-            setAff({ ...form, code, status: 'pending', uid: user.uid, totalEarnings: 0, pendingEarnings: 0, totalSales: 0, totalReferrals: 0, createdAt: null })
+            const { code, promoCode } = await applyForAffiliate(user.uid, form)
+            setAff({ ...form, code, promoCode, status: 'pending', uid: user.uid, totalEarnings: 0, pendingEarnings: 0, totalSales: 0, totalReferrals: 0, createdAt: null })
             toast('Application submitted! We\'ll review within 24 hours.', 'success')
         } catch { toast('Failed to submit. Try again.', 'error') }
         finally { setSubmitting(false) }

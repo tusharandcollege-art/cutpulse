@@ -13,7 +13,8 @@ export interface AffiliateData {
     followers: string
     niche: string
     why: string
-    code: string
+    code: string          // lowercase handle (internal)
+    promoCode: string     // e.g. "ROHIT20" (user-facing, unique)
     status: 'pending' | 'approved' | 'rejected'
     upiId?: string
     totalEarnings: number
@@ -23,19 +24,60 @@ export interface AffiliateData {
     createdAt: any
 }
 
+/** Generate a unique promo code like ROHIT20, TECHWITHROHIT20, etc. */
+async function generateUniquePromoCode(instagram: string): Promise<string> {
+    const base = instagram.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) + '20'
+
+    // Check if base code is already taken
+    const existing = await getDocs(
+        query(collection(db, 'affiliates'), where('promoCode', '==', base))
+    )
+    if (existing.empty) return base
+
+    // If taken, append random 3 digits until unique
+    for (let i = 0; i < 10; i++) {
+        const suffix = Math.floor(100 + Math.random() * 900).toString()
+        const candidate = instagram.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) + suffix
+        const check = await getDocs(
+            query(collection(db, 'affiliates'), where('promoCode', '==', candidate))
+        )
+        if (check.empty) return candidate
+    }
+
+    // Fallback: uuid-style suffix
+    return base + Date.now().toString().slice(-4)
+}
+
 /** Submit affiliate application */
 export async function applyForAffiliate(uid: string, data: {
     name: string; email: string; instagram: string; followers: string; niche: string; why: string
 }) {
     const code = data.instagram.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30)
+    const promoCode = await generateUniquePromoCode(data.instagram)
+
     await setDoc(doc(db, 'affiliates', uid), {
-        uid, ...data, code,
+        uid, ...data, code, promoCode,
         status: 'pending',
         totalEarnings: 0, pendingEarnings: 0,
         totalSales: 0, totalReferrals: 0,
         createdAt: serverTimestamp(),
     })
-    return code
+    return { code, promoCode }
+}
+
+/** Validate a promo code entered at checkout — returns affiliate if valid & approved */
+export async function validatePromoCode(input: string): Promise<AffiliateData | null> {
+    const normalized = input.trim().toUpperCase().replace(/\s+/g, '')
+    if (!normalized) return null
+
+    const snap = await getDocs(
+        query(
+            collection(db, 'affiliates'),
+            where('promoCode', '==', normalized),
+            where('status', '==', 'approved')
+        )
+    )
+    return snap.empty ? null : snap.docs[0].data() as AffiliateData
 }
 
 /** Get affiliate by UID */
@@ -44,43 +86,19 @@ export async function getAffiliate(uid: string): Promise<AffiliateData | null> {
     return snap.exists() ? snap.data() as AffiliateData : null
 }
 
-/** Get approved affiliate by referral code */
-export async function getAffiliateByCode(code: string): Promise<AffiliateData | null> {
-    const q = query(collection(db, 'affiliates'), where('code', '==', code), where('status', '==', 'approved'))
-    const snap = await getDocs(q)
-    return snap.empty ? null : snap.docs[0].data() as AffiliateData
-}
-
-/** Called when a new user signs up via referral link */
-export async function trackReferralSignup(affiliateUid: string, referredUid: string) {
-    try {
-        // Tag user as referred
-        await updateDoc(doc(db, 'users', referredUid), { referredBy: affiliateUid })
-    } catch {
-        await setDoc(doc(db, 'users', referredUid), { referredBy: affiliateUid }, { merge: true })
-    }
-    // Create referral record
-    await addDoc(collection(db, 'referrals'), {
-        affiliateUid, referredUid,
-        status: 'signed_up', commission: 0, purchaseAmount: 0,
-        createdAt: serverTimestamp(),
-    })
-    // Increment referral count
-    await updateDoc(doc(db, 'affiliates', affiliateUid), { totalReferrals: increment(1) })
-}
-
-/** Record 20% commission when referred user purchases */
+/** Record commission when promo code was used at checkout */
 export async function recordAffiliateCommission(affiliateUid: string, referredUid: string, amountINR: number) {
     const commission = Math.floor(amountINR * 0.20)
-    const q = query(collection(db, 'referrals'), where('affiliateUid', '==', affiliateUid), where('referredUid', '==', referredUid))
-    const snap = await getDocs(q)
-    if (!snap.empty) {
-        await updateDoc(snap.docs[0].ref, { status: 'purchased', purchaseAmount: amountINR, commission })
-    }
     await updateDoc(doc(db, 'affiliates', affiliateUid), {
         totalEarnings: increment(commission),
         pendingEarnings: increment(commission),
         totalSales: increment(1),
+    })
+    // Log the sale for admin visibility
+    await addDoc(collection(db, 'affiliateSales'), {
+        affiliateUid, referredUid,
+        amount: amountINR, commission,
+        createdAt: serverTimestamp(),
     })
     return commission
 }

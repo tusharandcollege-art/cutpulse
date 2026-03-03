@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react'
 import { Check, Zap, Star, Crown, Building2, Gift, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ToastProvider'
-import { applyPromoOrReferralCode, purchasePlanCredit } from '@/lib/points'
+import { purchasePlanCredit } from '@/lib/points'
 import { load } from '@cashfreepayments/cashfree-js'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore'
-import { recordAffiliateCommission } from '@/lib/affiliate'
+import { validatePromoCode, recordAffiliateCommission, AffiliateData } from '@/lib/affiliate'
 
 type Billing = 'monthly' | 'yearly'
 
@@ -70,8 +70,9 @@ const PLANS: Plan[] = [
     },
 ]
 
-function PlanCard({ plan, billing, onPurchase }: { plan: Plan; billing: Billing; onPurchase: (plan: Plan) => void }) {
-    const inrPrice = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+function PlanCard({ plan, billing, discount, onPurchase }: { plan: Plan; billing: Billing; discount: boolean; onPurchase: (plan: Plan) => void }) {
+    const originalPrice = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+    const inrPrice = discount ? Math.floor(originalPrice * 0.80) : originalPrice
     const isHighlighted = plan.highlight || plan.bestValue
 
     return (
@@ -108,12 +109,23 @@ function PlanCard({ plan, billing, onPurchase }: { plan: Plan; billing: Billing;
 
             {/* Price */}
             <div className="mb-1">
-                <div className="flex items-end gap-1">
-                    <span className="text-4xl font-black" style={{ color: 'var(--text)' }}>
+                <div className="flex items-end gap-2">
+                    {discount && (
+                        <span className="text-xl font-bold line-through" style={{ color: 'var(--text-muted)' }}>
+                            ₹{originalPrice.toLocaleString('en-IN')}
+                        </span>
+                    )}
+                    <span className="text-4xl font-black" style={{ color: discount ? '#22c55e' : 'var(--text)' }}>
                         ₹{inrPrice.toLocaleString('en-IN')}
                     </span>
                     <span className="text-sm mb-1.5 font-semibold" style={{ color: 'var(--text-muted)' }}>/mo</span>
                 </div>
+                {discount && (
+                    <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[11px] font-black"
+                        style={{ background: '#22c55e18', color: '#22c55e', border: '1px solid #22c55e33' }}>
+                        🎉 20% OFF Applied
+                    </div>
+                )}
                 {billing === 'yearly' ? (
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>billed ₹{(plan.inrYearlyPrice * 12).toLocaleString('en-IN')}/year</span>
@@ -168,8 +180,10 @@ export default function PricingPage() {
     const [billing, setBilling] = useState<Billing>('yearly')
     const { user, signIn } = useAuth()
     const { show: toast } = useToast()
-    const [promo, setPromo] = useState('')
-    const [promoStatus, setPromoStatus] = useState<{ msg: string, type: 'success' | 'error' } | null>(null)
+    const [promoInput, setPromoInput] = useState('')
+    const [promoAffiliate, setPromoAffiliate] = useState<AffiliateData | null>(null)
+    const [promoError, setPromoError] = useState('')
+    const [promoLoading, setPromoLoading] = useState(false)
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
     const [userPhone, setUserPhone] = useState<string>('')
 
@@ -252,25 +266,23 @@ export default function PricingPage() {
                         toast(`Payment Successful! 🎉 ${plan.points.toLocaleString()} pts added.`, 'success')
 
                         // 6. Record purchase in Firestore (for admin dashboard)
-                        const inrAmount = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+                        const originalInr = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+                        const finalAmount = promoAffiliate ? Math.floor(originalInr * 0.80) : originalInr
                         await addDoc(collection(db, 'purchases'), {
                             uid: user?.uid,
                             planName: plan.name,
-                            amount: inrAmount,
+                            amount: finalAmount,
                             currency: 'INR',
                             orderId: data.order_id,
                             billing,
+                            promoCode: promoAffiliate?.promoCode ?? null,
                             createdAt: serverTimestamp(),
                         }).catch(() => { })
 
-                        // 7. Pay 20% affiliate commission if user was referred
-                        if (user?.uid) {
+                        // 7. Pay 20% affiliate commission if promo code was used
+                        if (promoAffiliate && user?.uid) {
                             try {
-                                const userSnap = await getDoc(doc(db, 'users', user.uid))
-                                const referredBy = userSnap.data()?.referredBy
-                                if (referredBy) {
-                                    await recordAffiliateCommission(referredBy, user.uid, inrAmount)
-                                }
+                                await recordAffiliateCommission(promoAffiliate.uid, user.uid, originalInr)
                             } catch { /* non-critical */ }
                         }
 
@@ -293,14 +305,26 @@ export default function PricingPage() {
         }
     }
 
-    const handlePromo = async () => {
-        if (!user) { signIn(); return }
-        if (!promo.trim()) return
-        const res = await applyPromoOrReferralCode(user.uid, promo)
-        setPromoStatus({ msg: res.message, type: res.success ? 'success' : 'error' })
-        if (res.success) setPromo('')
-        setTimeout(() => setPromoStatus(null), 4000)
+    const handleApplyPromo = async () => {
+        if (!promoInput.trim()) return
+        setPromoError('')
+        setPromoLoading(true)
+        try {
+            const aff = await validatePromoCode(promoInput)
+            if (aff) {
+                setPromoAffiliate(aff)
+                toast(`✅ Promo code applied! 20% off on all plans.`, 'success')
+            } else {
+                setPromoAffiliate(null)
+                setPromoError('Invalid or expired promo code.')
+            }
+        } catch {
+            setPromoError('Could not verify code. Try again.')
+        } finally {
+            setPromoLoading(false)
+        }
     }
+
 
     return (
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '32px 24px 40px', position: 'relative' }}>
@@ -413,37 +437,41 @@ export default function PricingPage() {
                 {/* Plan cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-4">
                     {PLANS.map(plan => (
-                        <PlanCard key={plan.id} plan={plan} billing={billing} onPurchase={handlePurchase} />
+                        <PlanCard key={plan.id} plan={plan} billing={billing} discount={!!promoAffiliate} onPurchase={handlePurchase} />
                     ))}
                 </div>
 
                 {/* Promo Code section */}
                 <div className="mt-8 mx-auto max-w-sm">
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>
-                                <Gift size={14} style={{ color: 'var(--indigo)' }} />
-                                Have a Promo or Referral Code?
-                            </div>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, marginLeft: 22 }}>
-                                New users get 100 bonus pts. Referrers get a 15% points match on plan purchases!
-                            </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>
+                            <Gift size={14} style={{ color: 'var(--indigo)' }} />
+                            Have an Influencer Promo Code?
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input value={promo} onChange={e => setPromo(e.target.value.toUpperCase())}
-                                placeholder="Enter code"
-                                style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px', fontSize: 13, textTransform: 'uppercase', outline: 'none', color: 'var(--text)' }} />
-                            <button onClick={handlePromo} disabled={!promo.trim()} style={{
-                                background: promo.trim() ? 'var(--indigo)' : 'var(--bg-input)', color: promo.trim() ? '#fff' : 'var(--text-muted)',
-                                border: 'none', borderRadius: 10, padding: '0 16px', fontWeight: 800, fontSize: 12, cursor: promo.trim() ? 'pointer' : 'not-allowed', transition: 'all .2s'
-                            }}>
-                                Apply
-                            </button>
-                        </div>
-                        {promoStatus && (
-                            <div style={{ fontSize: 11, fontWeight: 700, color: promoStatus.type === 'success' ? '#22c55e' : '#ef4444' }}>
-                                {promoStatus.msg}
+
+                        {promoAffiliate ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: '#22c55e10', border: '1px solid #22c55e33' }}>
+                                <div>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: '#22c55e' }}>🎉 20% OFF Applied!</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Code by @{promoAffiliate.instagram}</div>
+                                </div>
+                                <button onClick={() => { setPromoAffiliate(null); setPromoInput(''); setPromoError('') }}
+                                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
                             </div>
+                        ) : (
+                            <>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input value={promoInput} onChange={e => setPromoInput(e.target.value.toUpperCase())}
+                                        onKeyDown={e => e.key === 'Enter' && handleApplyPromo()}
+                                        placeholder="e.g. ROHIT20"
+                                        style={{ flex: 1, background: 'var(--bg-input)', border: `1px solid ${promoError ? '#ef4444' : 'var(--border)'}`, borderRadius: 10, padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', outline: 'none', color: 'var(--text)' }} />
+                                    <button onClick={handleApplyPromo} disabled={!promoInput.trim() || promoLoading}
+                                        style={{ background: promoInput.trim() ? 'var(--indigo)' : 'var(--bg-input)', color: promoInput.trim() ? '#fff' : 'var(--text-muted)', border: 'none', borderRadius: 10, padding: '0 16px', fontWeight: 800, fontSize: 12, cursor: promoInput.trim() ? 'pointer' : 'not-allowed' }}>
+                                        {promoLoading ? '...' : 'Apply'}
+                                    </button>
+                                </div>
+                                {promoError && <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444' }}>{promoError}</div>}
+                            </>
                         )}
                     </div>
                 </div>

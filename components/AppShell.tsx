@@ -14,7 +14,7 @@ import { ToastProvider } from '@/components/ToastProvider'
 import Footer from '@/components/Footer'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { getAffiliateByCode, trackReferralSignup, getAffiliate } from '@/lib/affiliate'
+
 
 const activePolls = new Set<string>()
 
@@ -77,12 +77,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return () => window.removeEventListener('cutpulse:require-auth', handler)
     }, [])
 
-    // Capture ?ref=CODE from URL and store in localStorage for referral tracking
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search)
-        const ref = params.get('ref')
-        if (ref) localStorage.setItem('cutpulse_ref', ref)
-    }, [])
+
 
     // Background video completion syncer (so users can close the browser and not lose generating videos)
     const { update } = useVideoStore()
@@ -128,20 +123,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             // Check if this user already provided a phone number
             const snap = await getDoc(doc(db, 'users', freshUser.uid))
             const isNewUser = !snap.exists() || !snap.data()?.phone
-
-            // If new user — check for referral code in localStorage
-            if (isNewUser) {
-                const refCode = localStorage.getItem('cutpulse_ref')
-                if (refCode) {
-                    try {
-                        const affiliate = await getAffiliateByCode(refCode)
-                        if (affiliate) {
-                            await trackReferralSignup(affiliate.uid, freshUser.uid)
-                        }
-                    } catch { /* non-critical */ }
-                    localStorage.removeItem('cutpulse_ref')
-                }
-            }
 
             if (isNewUser) {
                 setShowPhoneModal(true)

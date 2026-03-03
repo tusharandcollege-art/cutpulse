@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ToastProvider'
-import { applyForAffiliate, getAffiliate, requestPayout, AffiliateData } from '@/lib/affiliate'
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
+import { applyForAffiliate, requestPayout, AffiliateData } from '@/lib/affiliate'
+import { collection, query, where, getDocs, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Copy, Check, Instagram } from 'lucide-react'
 
@@ -23,24 +23,73 @@ export default function AffiliatesPage() {
     const [payoutLoading, setPayoutLoading] = useState(false)
     const [calcSales, setCalcSales] = useState(10)
     const [form, setForm] = useState({ name: '', email: '', instagram: '', followers: '10000', niche: 'Tech & AI', why: '' })
+    const unsubRef = useRef<(() => void) | null>(null)
+
+    // ── Use user?.uid (stable string) NOT user object (changes reference each render) ──
+    const uid = user?.uid
 
     useEffect(() => {
+        // Auth still loading — wait
         if (authLoading) return
-        if (!user) { setPageLoading(false); return }
 
-        setForm(f => ({ ...f, name: user.displayName || '', email: user.email || '' }))
-
-        getAffiliate(user.uid).then(async data => {
-            setAff(data)
-            setUpi(data?.upiId || '')
-            if (data?.status === 'approved') {
-                const q = query(collection(db, 'referrals'), where('affiliateUid', '==', user.uid), orderBy('createdAt', 'desc'))
-                const snap = await getDocs(q)
-                setReferrals(snap.docs.map(d => ({ ...d.data(), id: d.id })))
-            }
+        // Not signed in — stop loading, show apply/pitch page
+        if (!uid) {
             setPageLoading(false)
-        })
-    }, [user, authLoading])
+            setAff(null)
+            return
+        }
+
+        setForm(f => ({ ...f, name: user?.displayName || '', email: user?.email || '' }))
+
+        // Safety timeout — if Firestore never responds in 6s, stop spinner
+        const timeout = setTimeout(() => setPageLoading(false), 6000)
+
+        // Clean up any previous listener
+        if (unsubRef.current) { unsubRef.current(); unsubRef.current = null }
+
+        // Real-time listener — fires whenever admin changes status
+        const unsub = onSnapshot(
+            doc(db, 'affiliates', uid),
+            async (snap) => {
+                clearTimeout(timeout)
+                if (!snap.exists()) {
+                    setAff(null)
+                    setPageLoading(false)
+                    return
+                }
+                const data = { ...snap.data(), uid: snap.id } as AffiliateData
+                setAff(data)
+                setUpi(prev => prev || data.upiId || '')
+                setPageLoading(false)
+
+                // Load referral history in background (approved only)
+                if (data.status === 'approved') {
+                    try {
+                        const refSnap = await getDocs(
+                            query(collection(db, 'referrals'), where('affiliateUid', '==', uid))
+                        )
+                        setReferrals(
+                            refSnap.docs
+                                .map(d => ({ ...d.data(), id: d.id }))
+                                .sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
+                        )
+                    } catch { /* non-critical */ }
+                }
+            },
+            (err) => {
+                console.error('Affiliate snapshot error:', err)
+                clearTimeout(timeout)
+                setPageLoading(false)
+            }
+        )
+
+        unsubRef.current = unsub
+        return () => {
+            clearTimeout(timeout)
+            unsub()
+            unsubRef.current = null
+        }
+    }, [uid, authLoading])   // ← uid is a stable string, not a changing object reference
 
     const link = aff ? `https://cutpulse.com/?ref=${aff.code}` : ''
 

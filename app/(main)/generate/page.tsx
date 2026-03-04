@@ -117,7 +117,7 @@ export default function GeneratePage() {
     const [messages, setMessages] = useState<Message[]>([])
     const [prompt, setPrompt] = useState('')
     const s = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('cp-settings') || '{}') : {}
-    const [model, setModel] = useState<Model>(s.defaultModel ?? 'seedance_2.0_fast')
+    const [model, setModel] = useState<Model>(s.defaultModel ?? 'seedance_v1_pro_fast_t2v')
     const [ratio, setRatio] = useState<Ratio>(s.defaultRatio ?? '16:9')
     const [duration, setDuration] = useState<Duration>(s.defaultDuration ?? 5)
     const [focused, setFocused] = useState(false)
@@ -288,6 +288,8 @@ export default function GeneratePage() {
                 model={model} setModel={setModel} ratio={ratio} setRatio={setRatio}
                 duration={duration} setDuration={setDuration}
                 onGenerate={() => generate()} isLoading={isGenerating} canGenerate={!!prompt.trim()}
+                visibleModels={['seedance_v1_pro_fast_t2v']}
+                userPoints={points}
             />
         </div>
     )

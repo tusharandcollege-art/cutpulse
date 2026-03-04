@@ -23,7 +23,7 @@ export default function ImageToVideoPage() {
     const [prompt, setPrompt] = useState('')
     const [image, setImage] = useState<string | null>(null)
     const s = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('cp-settings') || '{}') : {}
-    const [model, setModel] = useState<Model>(s.defaultModel ?? 'seedance_2.0_fast')
+    const [model, setModel] = useState<Model>(s.defaultModel ?? 'seedance_v1_pro_fast')
     const [ratio, setRatio] = useState<Ratio>(s.defaultRatio ?? '16:9')
     const [duration, setDuration] = useState<Duration>(s.defaultDuration ?? 5)
     const [focused, setFocused] = useState(false)
@@ -156,7 +156,7 @@ export default function ImageToVideoPage() {
                     style={{ color: 'var(--text)', minHeight: 36, maxHeight: 120, overflow: 'auto', flex: 1 }}
                 />
             </div>
-            <GenerationToolbar model={model} setModel={setModel} ratio={ratio} setRatio={setRatio} duration={duration} setDuration={setDuration} onGenerate={generate} isLoading={isGenerating} canGenerate={!!image} />
+            <GenerationToolbar model={model} setModel={setModel} ratio={ratio} setRatio={setRatio} duration={duration} setDuration={setDuration} onGenerate={generate} isLoading={isGenerating} canGenerate={!!image} visibleModels={['seedance_v1_pro_fast']} userPoints={points} />
         </div>
     )
 

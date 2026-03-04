@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, Zap, Sparkles } from 'lucide-react'
 
-export type Model = 'seedance_2.0' | 'seedance_2.0_fast' | 'seedance_v1_pro_fast'
+export type Model = 'seedance_2.0' | 'seedance_2.0_fast' | 'seedance_v1_pro_fast' | 'seedance_v1_pro_fast_t2v'
 export type Ratio = '16:9' | '9:16' | '1:1'
 export type Duration = 4 | 5 | 8 | 10 | 15
 
@@ -13,13 +13,13 @@ export type Duration = 4 | 5 | 8 | 10 | 15
 // Std   + no video files  = 200 pts/s
 // Std   + video files     = 400 pts/s
 export function calcCost(model: Model, duration: number, hasVideoFiles = false): number {
-    if (model === 'seedance_v1_pro_fast') return 10 * duration   // 720p flat rate
+    if (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') return 10 * duration
     if (model === 'seedance_2.0_fast') return (hasVideoFiles ? 200 : 100) * duration
     return (hasVideoFiles ? 400 : 200) * duration
 }
 
 export function rateLabel(model: Model, hasVideoFiles = false): string {
-    if (model === 'seedance_v1_pro_fast') return '10 pts/s'
+    if (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') return '10 pts/s'
     const rate = model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
     return `${rate} pts/s`
 }
@@ -27,8 +27,14 @@ export function rateLabel(model: Model, hasVideoFiles = false): string {
 export const MODELS: { id: Model; name: string; color: string; badge?: string }[] = [
     { id: 'seedance_2.0_fast', name: 'Seedance 2.0 Fast', color: '#22c55e' },
     { id: 'seedance_2.0', name: 'Seedance 2.0', color: '#7c7cf0' },
-    { id: 'seedance_v1_pro_fast', name: 'Seedance Pro Fast', color: '#f59e0b', badge: 'NEW' },
+    { id: 'seedance_v1_pro_fast_t2v', name: 'Seedance Pro Fast', color: '#f59e0b', badge: 'NEW' },
+    { id: 'seedance_v1_pro_fast', name: 'Seedance Pro Fast Img', color: '#fb923c', badge: 'NEW' },
 ]
+
+// Default selectable models (frames/omni pages that don't pass visibleModels)
+const STANDARD_MODELS: Model[] = ['seedance_2.0_fast', 'seedance_2.0']
+// Models shown as Coming Soon teaser for 500+ pt users
+const COMING_SOON_MODELS: Model[] = ['seedance_2.0_fast', 'seedance_2.0']
 
 export const RATIOS: { val: Ratio; label: string; short: string }[] = [
     { val: '16:9', label: '16:9  Landscape', short: '16:9' },
@@ -45,23 +51,37 @@ interface Props {
     onGenerate: () => void
     isLoading: boolean
     canGenerate: boolean
-    hasVideoFiles?: boolean   // true when omni-reference has video_files → higher rate
+    hasVideoFiles?: boolean
+    /** If set, only these model IDs show as selectable options */
+    visibleModels?: Model[]
+    /** Used to show Coming Soon teaser on Seedance 2.0 for engaged users */
+    userPoints?: number
 }
 
 export default function GenerationToolbar({
     model, setModel, ratio, setRatio, duration, setDuration,
     onGenerate, isLoading, canGenerate, hasVideoFiles = false,
+    visibleModels, userPoints = 0,
 }: Props) {
     const [openModel, setOpenModel] = useState(false)
     const [openRatio, setOpenRatio] = useState(false)
     const [openDur, setOpenDur] = useState(false)
     const closeAll = () => { setOpenModel(false); setOpenRatio(false); setOpenDur(false) }
 
+    // Which models are selectable
+    const selectableIds = visibleModels ?? STANDARD_MODELS
+    const selectableModels = MODELS.filter(m => selectableIds.includes(m.id))
+
+    // Show Seedance 2.0 as Coming Soon for 500+ pt users (only when page has Pro models instead)
+    const comingSoonModels = (visibleModels && userPoints >= 500)
+        ? MODELS.filter(m => COMING_SOON_MODELS.includes(m.id) && !selectableIds.includes(m.id))
+        : []
+
     const currentModel = MODELS.find(m => m.id === model)!
     const ratioFull = RATIOS.find(r => r.val === ratio)?.label ?? ratio
     const ratioShort = RATIOS.find(r => r.val === ratio)?.short ?? ratio
     const totalCost = calcCost(model, duration, hasVideoFiles)
-    const rateNum = model === 'seedance_v1_pro_fast' ? 10 : model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
+    const rateNum = (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') ? 10 : model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
     const rate = rateLabel(model, hasVideoFiles)
     // e.g. "100 × 5s = 500 pts"
     const formula = `${rateNum} × ${duration}s = ${totalCost} pts`
@@ -87,7 +107,8 @@ export default function GenerationToolbar({
                             <div style={{ padding: '6px 10px 8px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
                                 Select model · {hasVideoFiles ? 'video reference active' : 'no video reference'}
                             </div>
-                            {MODELS.map(m => {
+                            {/* ── Selectable models ─────────────── */}
+                            {selectableModels.map(m => {
                                 const r = rateLabel(m.id, hasVideoFiles)
                                 return (
                                     <button key={m.id} className={`dropdown-item ${m.id === model ? 'selected' : ''}`} onClick={() => { setModel(m.id); closeAll() }}>
@@ -100,6 +121,24 @@ export default function GenerationToolbar({
                                     </button>
                                 )
                             })}
+                            {/* ── Coming Soon teaser (500+ pts only) ─ */}
+                            {comingSoonModels.length > 0 && (
+                                <>
+                                    <div style={{ padding: '6px 10px 4px', fontSize: 9, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Coming Soon
+                                    </div>
+                                    {comingSoonModels.map(m => (
+                                        <button key={m.id} className="dropdown-item" disabled style={{ opacity: 0.45, cursor: 'not-allowed' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, display: 'inline-block' }} />
+                                                {m.name}
+                                                <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: 'rgba(120,120,120,.15)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>SOON</span>
+                                            </div>
+                                            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'monospace' }}>{rateLabel(m.id, hasVideoFiles)}</span>
+                                        </button>
+                                    ))}
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

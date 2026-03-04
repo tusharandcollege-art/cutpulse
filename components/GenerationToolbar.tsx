@@ -13,13 +13,13 @@ export type Duration = 4 | 5 | 8 | 10 | 15
 // Std   + no video files  = 200 pts/s
 // Std   + video files     = 400 pts/s
 export function calcCost(model: Model, duration: number, hasVideoFiles = false): number {
-    if (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') return 10 * duration
+    if (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') return 100 * duration
     if (model === 'seedance_2.0_fast') return (hasVideoFiles ? 200 : 100) * duration
     return (hasVideoFiles ? 400 : 200) * duration
 }
 
 export function rateLabel(model: Model, hasVideoFiles = false): string {
-    if (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') return '10 pts/s'
+    if (model === 'seedance_v1_pro_fast' || model === 'seedance_v1_pro_fast_t2v') return '100 pts/s'
     const rate = model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
     return `${rate} pts/s`
 }

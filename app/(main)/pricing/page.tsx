@@ -482,8 +482,8 @@ export default function PricingPage() {
                     <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Points are consumed per second of video generated. You always see exact costs before you generate.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[
-                            { label: 'Fast (no video ref)', rate: 100, example: '5s = 500 pts' },
-                            { label: 'Fast (with video ref)', rate: 200, example: '5s = 1,000 pts' },
+                            { label: 'Pro Fast (no video ref)', rate: 100, example: '5s = 500 pts' },
+                            { label: 'Pro Fast (with video ref)', rate: 200, example: '5s = 1,000 pts' },
                             { label: 'Standard (no video ref)', rate: 200, example: '5s = 1,000 pts' },
                             { label: 'Standard (with video ref)', rate: 400, example: '5s = 2,000 pts' },
                         ].map((r, i) => (

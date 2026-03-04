@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Check, Zap, Star, Crown, Building2, Gift, X } from 'lucide-react'
+import { Check, Zap, Star, Crown, Building2, Gift, Ticket, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ToastProvider'
 import { purchasePlanCredit } from '@/lib/points'
@@ -305,6 +305,33 @@ export default function PricingPage() {
         }
     }
 
+    const [giftInput, setGiftInput] = useState('')
+    const [giftLoading, setGiftLoading] = useState(false)
+    const [giftError, setGiftError] = useState('')
+    const [giftSuccess, setGiftSuccess] = useState<number | null>(null)
+
+    const handleApplyGift = async () => {
+        if (!giftInput.trim()) return
+        if (!user) { toast('Please sign in first.', 'error'); return }
+        setGiftError(''); setGiftLoading(true); setGiftSuccess(null)
+        try {
+            const idToken = await user.getIdToken()
+            const res = await fetch('/api/gift/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                body: JSON.stringify({ code: giftInput.trim() }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Invalid code')
+            setGiftSuccess(data.pointsAdded)
+            setGiftInput('')
+            toast(`🎁 +${data.pointsAdded} points added to your account!`, 'success')
+        } catch (e: any) {
+            setGiftError(e.message || 'Invalid or already-used code.')
+        } finally {
+            setGiftLoading(false)
+        }
+    }
     const handleApplyPromo = async () => {
         if (!promoInput.trim()) return
         setPromoError('')
@@ -476,7 +503,45 @@ export default function PricingPage() {
                     </div>
                 </div>
 
-                {/* Point calculator */}
+                {/* Gift Code section */}
+                <div className="mt-4 mx-auto max-w-sm">
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>
+                            <Ticket size={14} style={{ color: '#f59e0b' }} />
+                            Have a Gift Code?
+                        </div>
+
+                        {giftSuccess !== null ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: '#f59e0b10', border: '1px solid #f59e0b33' }}>
+                                <div>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>🎁 +{giftSuccess} points added!</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Points credited to your account.</div>
+                                </div>
+                                <button onClick={() => setGiftSuccess(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input
+                                        value={giftInput}
+                                        onChange={e => { setGiftInput(e.target.value.toUpperCase()); setGiftError('') }}
+                                        onKeyDown={e => e.key === 'Enter' && handleApplyGift()}
+                                        placeholder="e.g. CUTPULSE2000"
+                                        style={{ flex: 1, background: 'var(--bg-input)', border: `1px solid ${giftError ? '#ef4444' : 'var(--border)'}`, borderRadius: 10, padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', outline: 'none', color: 'var(--text)' }}
+                                    />
+                                    <button
+                                        onClick={handleApplyGift}
+                                        disabled={!giftInput.trim() || giftLoading}
+                                        style={{ background: giftInput.trim() ? '#f59e0b' : 'var(--bg-input)', color: giftInput.trim() ? '#fff' : 'var(--text-muted)', border: 'none', borderRadius: 10, padding: '0 16px', fontWeight: 800, fontSize: 12, cursor: giftInput.trim() ? 'pointer' : 'not-allowed' }}
+                                    >
+                                        {giftLoading ? '...' : 'Redeem'}
+                                    </button>
+                                </div>
+                                {giftError && <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444' }}>{giftError}</div>}
+                            </>
+                        )}
+                    </div>
+                </div>
                 <div className="mt-12 rounded-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                     <h3 className="font-black text-base mb-1" style={{ color: 'var(--text)' }}>How points work</h3>
                     <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Points are consumed per second of video generated. You always see exact costs before you generate.</p>

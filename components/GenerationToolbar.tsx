@@ -68,16 +68,22 @@ export default function GenerationToolbar({
     const [openDur, setOpenDur] = useState(false)
     const closeAll = () => { setOpenModel(false); setOpenRatio(false); setOpenDur(false) }
 
-    // When 500+ pts with no page override (frames/omni): lock all models as Coming Soon
-    const selectableIds = (!visibleModels && userPoints >= 500)
-        ? []   // all standard models become Coming Soon
-        : (visibleModels ?? STANDARD_MODELS)
-    const selectableModels = MODELS.filter(m => selectableIds.includes(m.id))
+    let selectableIds: Model[] = []
+    let comingSoonIds: Model[] = []
 
-    // Show Seedance 2.0 as Coming Soon for all 500+ pt users
-    const comingSoonModels = userPoints >= 500
-        ? MODELS.filter(m => COMING_SOON_MODELS.includes(m.id) && !selectableIds.includes(m.id))
-        : []
+    if (userPoints >= 500) {
+        // >= 500 pts: Only Pro Fast models are selectable, Seedance 2.0 is Coming Soon and unselectable
+        selectableIds = visibleModels ?? []
+        comingSoonIds = COMING_SOON_MODELS
+    } else {
+        // < 500 pts: All models are selectable (Pro Fast + Seedance 2.0)
+        // Keep them distinct so the dropdown list orders them nicely
+        selectableIds = [...(visibleModels ?? []), ...STANDARD_MODELS]
+        comingSoonIds = []
+    }
+
+    const selectableModels = MODELS.filter(m => selectableIds.includes(m.id))
+    const comingSoonModels = MODELS.filter(m => comingSoonIds.includes(m.id))
 
     const currentModel = MODELS.find(m => m.id === model)!
     const ratioFull = RATIOS.find(r => r.val === ratio)?.label ?? ratio
@@ -210,7 +216,13 @@ export default function GenerationToolbar({
                     {formula}
                 </div>
 
-                <button id="generate-btn" className="gen-btn" onClick={onGenerate} disabled={isLoading || !canGenerate}>
+                {/* If selected model is locked, disable generating */}
+                <button
+                    id="generate-btn"
+                    className="gen-btn"
+                    onClick={onGenerate}
+                    disabled={isLoading || !canGenerate || !selectableIds.includes(model)}
+                >
                     {isLoading ? (
                         <>
                             <span style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 1.2s linear infinite' }} />

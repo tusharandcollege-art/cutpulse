@@ -266,7 +266,7 @@ export default function PricingPage() {
                         toast(`Payment Successful! 🎉 ${plan.points.toLocaleString()} pts added.`, 'success')
 
                         // 6. Record purchase in Firestore (for admin dashboard)
-                        const originalInr = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+                        const originalInr = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice * 12
                         const finalAmount = promoAffiliate ? Math.floor(originalInr * 0.80) : originalInr
                         await addDoc(collection(db, 'purchases'), {
                             uid: user?.uid,
@@ -290,7 +290,7 @@ export default function PricingPage() {
                         if (typeof window !== 'undefined' && (window as any).gtag) {
                             ; (window as any).gtag('event', 'conversion', {
                                 send_to: 'AW-17985390147/9usaCJPEkIEcEMOMjYBD',
-                                value: billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice,
+                                value: billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice * 12,
                                 currency: 'INR',
                                 transaction_id: data.order_id,
                             })
@@ -384,7 +384,7 @@ export default function PricingPage() {
 
                             <button
                                 onClick={() => {
-                                    const inrAmount = billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice
+                                    const inrAmount = billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice * 12
                                     processCheckout(selectedPlan, 'INR', inrAmount)
                                 }}
                                 className="w-full relative flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200 group" style={{ borderColor: 'var(--border)', background: 'var(--bg-input)' }}
@@ -399,7 +399,7 @@ export default function PricingPage() {
                                     <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>UPI / Net Banking / Cards — Zero forex fees</div>
                                 </div>
                                 <div className="font-black text-lg" style={{ color: 'var(--text)' }}>
-                                    ₹{(billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice).toLocaleString('en-IN')}
+                                    ₹{(billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice * 12).toLocaleString('en-IN')}
                                 </div>
                             </button>
                         </div>

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
 
         const videoUrl =
             output?.video_url ??
+            output?.video?.url ??           // fal-ai models return here
             output?.url ??
             extractFromArray(output?.videos) ??
             extractFromArray(output?.images) ??

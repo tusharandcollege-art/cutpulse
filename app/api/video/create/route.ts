@@ -57,8 +57,7 @@ export async function POST(req: NextRequest) {
         let payload: Record<string, unknown>
 
         if (model === 'seedance_v1_pro_fast') {
-            // ── Direct fal-ai model — flat params, NO st-ai wrapper ──────────
-            // Requires an image URL as first frame
+            // ── Direct fal-ai image-to-video — flat params, NO st-ai wrapper ──
             const imageUrl = filePaths?.[0]
             if (!imageUrl) {
                 return NextResponse.json({ error: 'Seedance Pro Fast requires an image. Please upload one.' }, { status: 400 })
@@ -68,6 +67,17 @@ export async function POST(req: NextRequest) {
                 params: {
                     prompt: prompt || '',
                     image_url: imageUrl,
+                    duration: String(duration),   // must be string per API docs
+                },
+                channel: null,
+                callback_url: `${APP_URL}/api/video/webhook`,
+            }
+        } else if (model === 'seedance_v1_pro_fast_t2v') {
+            // ── Direct fal-ai text-to-video — no image needed, NO st-ai wrapper ──
+            payload = {
+                model: 'fal-ai/bytedance/seedance/v1/pro/fast/text-to-video',
+                params: {
+                    prompt: prompt || '',
                     duration: String(duration),   // must be string per API docs
                 },
                 channel: null,

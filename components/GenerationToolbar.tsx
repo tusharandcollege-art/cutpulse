@@ -68,12 +68,14 @@ export default function GenerationToolbar({
     const [openDur, setOpenDur] = useState(false)
     const closeAll = () => { setOpenModel(false); setOpenRatio(false); setOpenDur(false) }
 
-    // Which models are selectable
-    const selectableIds = visibleModels ?? STANDARD_MODELS
+    // When 500+ pts with no page override (frames/omni): lock all models as Coming Soon
+    const selectableIds = (!visibleModels && userPoints >= 500)
+        ? []   // all standard models become Coming Soon
+        : (visibleModels ?? STANDARD_MODELS)
     const selectableModels = MODELS.filter(m => selectableIds.includes(m.id))
 
-    // Show Seedance 2.0 as Coming Soon for 500+ pt users (only when page has Pro models instead)
-    const comingSoonModels = (visibleModels && userPoints >= 500)
+    // Show Seedance 2.0 as Coming Soon for all 500+ pt users
+    const comingSoonModels = userPoints >= 500
         ? MODELS.filter(m => COMING_SOON_MODELS.includes(m.id) && !selectableIds.includes(m.id))
         : []
 

@@ -307,6 +307,7 @@ export default function OmniReferencePage() {
                 duration={duration} setDuration={setDuration}
                 onGenerate={() => generate()} isLoading={isGenerating || uploading}
                 canGenerate={!!prompt.trim()} hasVideoFiles={hasVideoFiles}
+                userPoints={points}
             />
         </div>
     )

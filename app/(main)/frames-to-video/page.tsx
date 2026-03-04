@@ -160,7 +160,7 @@ export default function FramesToVideoPage() {
                     style={{ color: 'var(--text)', minHeight: 32, maxHeight: 100, overflow: 'auto', flex: 1 }}
                 />
             </div>
-            <GenerationToolbar model={model} setModel={setModel} ratio={ratio} setRatio={setRatio} duration={duration} setDuration={setDuration} onGenerate={generate} isLoading={isGenerating} canGenerate={!!frame1} />
+            <GenerationToolbar model={model} setModel={setModel} ratio={ratio} setRatio={setRatio} duration={duration} setDuration={setDuration} onGenerate={generate} isLoading={isGenerating} canGenerate={!!frame1} userPoints={points} />
         </div>
     )
 

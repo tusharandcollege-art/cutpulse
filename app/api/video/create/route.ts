@@ -53,35 +53,45 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // ─── Build inner params based on mode ──────────────────────────────
-        const innerParams: Record<string, unknown> = {
-            model,
-            prompt,
-            ratio,
-            duration,
-        }
+        // ─── Build payload based on model type ─────────────────────────────
+        let payload: Record<string, unknown>
 
-        if (functionMode === 'omni_reference') {
-            if (image_files.length > 4) {
-                return NextResponse.json({ error: 'Maximum 4 images allowed for Omni Reference.' }, { status: 400 })
+        if (model === 'seedance_v1_pro_fast') {
+            // ── Direct fal-ai model — flat params, NO st-ai wrapper ──────────
+            // Requires an image URL as first frame
+            const imageUrl = filePaths?.[0]
+            if (!imageUrl) {
+                return NextResponse.json({ error: 'Seedance Pro Fast requires an image. Please upload one.' }, { status: 400 })
             }
-            if (video_files.length > 3) {
-                return NextResponse.json({ error: 'Maximum 3 videos allowed for Omni Reference.' }, { status: 400 })
+            payload = {
+                model: 'fal-ai/bytedance/seedance/v1/pro/fast/image-to-video',
+                params: {
+                    prompt: prompt || '',
+                    image_url: imageUrl,
+                    duration: String(duration),   // must be string per API docs
+                },
+                channel: null,
+                callback_url: `${APP_URL}/api/video/webhook`,
             }
-            innerParams.functionMode = 'omni_reference'
-            if (image_files.length) innerParams.image_files = image_files
-            if (video_files.length) innerParams.video_files = video_files
         } else {
-            innerParams.functionMode = 'first_last_frames'
-            if (filePaths.length) innerParams.filePaths = filePaths
-        }
-
-        // ─── Outer xskill wrapper with callback_url ─────────────────────────
-        const payload = {
-            model: 'st-ai/super-seed2',
-            params: innerParams,
-            channel: null,
-            callback_url: `${APP_URL}/api/video/webhook`,
+            // ── Existing st-ai/super-seed2 wrapper (Seedance 2.0) ────────────
+            const innerParams: Record<string, unknown> = { model, prompt, ratio, duration }
+            if (functionMode === 'omni_reference') {
+                if (image_files.length > 4) return NextResponse.json({ error: 'Maximum 4 images allowed for Omni Reference.' }, { status: 400 })
+                if (video_files.length > 3) return NextResponse.json({ error: 'Maximum 3 videos allowed for Omni Reference.' }, { status: 400 })
+                innerParams.functionMode = 'omni_reference'
+                if (image_files.length) innerParams.image_files = image_files
+                if (video_files.length) innerParams.video_files = video_files
+            } else {
+                innerParams.functionMode = 'first_last_frames'
+                if (filePaths.length) innerParams.filePaths = filePaths
+            }
+            payload = {
+                model: 'st-ai/super-seed2',
+                params: innerParams,
+                channel: null,
+                callback_url: `${APP_URL}/api/video/webhook`,
+            }
         }
 
         console.log('[create] payload →', JSON.stringify(payload, null, 2))

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, Zap, Sparkles } from 'lucide-react'
 
-export type Model = 'seedance_2.0' | 'seedance_2.0_fast'
+export type Model = 'seedance_2.0' | 'seedance_2.0_fast' | 'seedance_v1_pro_fast'
 export type Ratio = '16:9' | '9:16' | '1:1'
 export type Duration = 4 | 5 | 8 | 10 | 15
 
@@ -13,18 +13,21 @@ export type Duration = 4 | 5 | 8 | 10 | 15
 // Std   + no video files  = 200 pts/s
 // Std   + video files     = 400 pts/s
 export function calcCost(model: Model, duration: number, hasVideoFiles = false): number {
+    if (model === 'seedance_v1_pro_fast') return 10 * duration   // 720p flat rate
     if (model === 'seedance_2.0_fast') return (hasVideoFiles ? 200 : 100) * duration
     return (hasVideoFiles ? 400 : 200) * duration
 }
 
 export function rateLabel(model: Model, hasVideoFiles = false): string {
+    if (model === 'seedance_v1_pro_fast') return '10 pts/s'
     const rate = model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
     return `${rate} pts/s`
 }
 
-export const MODELS: { id: Model; name: string; color: string }[] = [
+export const MODELS: { id: Model; name: string; color: string; badge?: string }[] = [
     { id: 'seedance_2.0_fast', name: 'Seedance 2.0 Fast', color: '#22c55e' },
     { id: 'seedance_2.0', name: 'Seedance 2.0', color: '#7c7cf0' },
+    { id: 'seedance_v1_pro_fast', name: 'Seedance Pro Fast', color: '#f59e0b', badge: 'NEW' },
 ]
 
 export const RATIOS: { val: Ratio; label: string; short: string }[] = [
@@ -58,7 +61,7 @@ export default function GenerationToolbar({
     const ratioFull = RATIOS.find(r => r.val === ratio)?.label ?? ratio
     const ratioShort = RATIOS.find(r => r.val === ratio)?.short ?? ratio
     const totalCost = calcCost(model, duration, hasVideoFiles)
-    const rateNum = model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
+    const rateNum = model === 'seedance_v1_pro_fast' ? 10 : model === 'seedance_2.0_fast' ? (hasVideoFiles ? 200 : 100) : (hasVideoFiles ? 400 : 200)
     const rate = rateLabel(model, hasVideoFiles)
     // e.g. "100 × 5s = 500 pts"
     const formula = `${rateNum} × ${duration}s = ${totalCost} pts`
@@ -91,6 +94,7 @@ export default function GenerationToolbar({
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, display: 'inline-block' }} />
                                             {m.name}
+                                            {m.badge && <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: '#f59e0b22', color: '#f59e0b', border: '1px solid #f59e0b44' }}>{m.badge}</span>}
                                         </div>
                                         <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'monospace' }}>{r}</span>
                                     </button>

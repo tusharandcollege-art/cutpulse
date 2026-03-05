@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Check, Zap, Star, Crown, Building2, Gift, Ticket, X, Globe, IndianRupee, CreditCard } from 'lucide-react'
+import { Check, Zap, Star, Crown, Building2, Gift, Ticket, X, Globe, IndianRupee } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ToastProvider'
 import { purchasePlanCredit } from '@/lib/points'
@@ -222,6 +222,7 @@ function PlanCard({
 export default function PricingPage() {
     const [billing, setBilling] = useState<Billing>('yearly')
     const [region, setRegion] = useState<Region>('india')
+    const [geoLoading, setGeoLoading] = useState(true)
     const { user, signIn } = useAuth()
     const { show: toast } = useToast()
     const [promoInput, setPromoInput] = useState('')
@@ -232,19 +233,27 @@ export default function PricingPage() {
     const [userPhone, setUserPhone] = useState<string>('')
     const [dodoLoading, setDodoLoading] = useState(false)
 
-    // Auto-detect region from URL query (after Dodo redirect back)
+    // Auto-detect region from IP address via /api/geo (Vercel geo headers)
+    useEffect(() => {
+        fetch('/api/geo')
+            .then(r => r.json())
+            .then(data => {
+                setRegion(data.country === 'IN' ? 'india' : 'international')
+            })
+            .catch(() => setRegion('india')) // safe fallback
+            .finally(() => setGeoLoading(false))
+    }, [])
+
+    // Handle Dodo redirect back after payment
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
         if (params.get('dodo_success') === '1') {
             const pts = parseInt(params.get('points') || '0', 10)
-            const planName = params.get('plan') || 'your plan'
             if (pts > 0 && user) {
-                // Points are already credited via webhook, just show success toast
                 toast(`🎉 Payment successful! ${pts.toLocaleString()} points added to your account.`, 'success')
             } else if (pts > 0) {
                 toast(`🎉 Payment successful! Points will be credited shortly.`, 'success')
             }
-            // Clean up URL
             window.history.replaceState({}, '', '/pricing')
         }
     }, [user])
@@ -554,38 +563,25 @@ export default function PricingPage() {
                     </p>
                 </div>
 
-                {/* ── Region Toggle (India INR  ↔  International USD) ── */}
+                {/* ── Auto-detected Region Badge ── */}
                 <div className="flex justify-center mb-6">
-                    <div className="flex items-center rounded-xl p-1 gap-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                        <button
-                            onClick={() => setRegion('india')}
-                            className="px-5 py-2 rounded-lg text-sm font-black transition-all duration-200 flex items-center gap-2"
-                            style={region === 'india'
-                                ? { background: '#14b8a6', color: '#fff', boxShadow: '0 4px 12px rgba(20,184,166,.3)' }
-                                : { color: 'var(--text-muted)', background: 'transparent' }
-                            }
-                        >
-                            🇮🇳 India
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black"
-                                style={{ background: region === 'india' ? 'rgba(255,255,255,.25)' : '#14b8a618', color: region === 'india' ? '#fff' : '#14b8a6' }}>
-                                ₹ INR · UPI
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => setRegion('international')}
-                            className="px-5 py-2 rounded-lg text-sm font-black transition-all duration-200 flex items-center gap-2"
-                            style={region === 'international'
-                                ? { background: 'var(--indigo)', color: '#fff', boxShadow: '0 4px 12px var(--indigo-glow)' }
-                                : { color: 'var(--text-muted)', background: 'transparent' }
-                            }
-                        >
-                            🌍 International
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black"
-                                style={{ background: region === 'international' ? 'rgba(255,255,255,.25)' : 'var(--indigo-light)', color: region === 'international' ? '#fff' : '#a5b4fc' }}>
-                                $ USD · Card
-                            </span>
-                        </button>
-                    </div>
+                    {geoLoading ? (
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold animate-pulse"
+                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                            Detecting your location...
+                        </div>
+                    ) : (
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold"
+                            style={{
+                                background: isIndia ? '#14b8a610' : '#6366f110',
+                                border: `1px solid ${isIndia ? '#14b8a633' : '#6366f133'}`,
+                                color: isIndia ? '#14b8a6' : '#a5b4fc'
+                            }}>
+                            {isIndia
+                                ? '🇮🇳 Showing prices in ₹ INR for India'
+                                : '🌍 Showing prices in $ USD for your region'}
+                        </div>
+                    )}
                 </div>
 
                 {/* Billing toggle */}
@@ -616,13 +612,13 @@ export default function PricingPage() {
                     </div>
                 </div>
 
-                {/* Info strip below region toggle */}
+                {/* Payment method info strip */}
                 <div className="flex justify-center mb-8">
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold"
                         style={{ background: isIndia ? '#14b8a610' : '#6366f110', border: `1px solid ${isIndia ? '#14b8a633' : '#6366f133'}`, color: isIndia ? '#14b8a6' : '#a5b4fc' }}>
                         {isIndia
-                            ? '🇮🇳 Prices shown in ₹ INR · Pay with UPI, Net Banking, or Cards via Cashfree'
-                            : '🌍 Prices shown in $ USD · Pay with Visa, Mastercard, or Amex via Dodo Payments'}
+                            ? '🔒 UPI · Net Banking · Cards — powered by Cashfree'
+                            : '🔒 Visa · Mastercard · Amex — powered by Dodo Payments'}
                     </div>
                 </div>
 

@@ -499,7 +499,10 @@ export default function PricingPage() {
                                     </div>
                                 </div>
                                 <div className="font-black text-lg" style={{ color: 'var(--text)' }}>
-                                    ${billing === 'monthly' ? selectedPlan.usdPrice : selectedPlan.usdYearlyPrice}
+                                    ${billing === 'monthly'
+                                        ? selectedPlan.usdPrice
+                                        : (selectedPlan.usdYearlyPrice * 12).toFixed(2)
+                                    }{billing === 'yearly' ? '/yr' : '/mo'}
                                 </div>
                             </button>
 

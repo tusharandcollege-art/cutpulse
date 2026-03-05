@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Check, Zap, Star, Crown, Building2, Gift, Ticket, X } from 'lucide-react'
+import { Check, Zap, Star, Crown, Building2, Gift, Ticket, X, Globe, IndianRupee, CreditCard } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ToastProvider'
 import { purchasePlanCredit } from '@/lib/points'
@@ -11,38 +11,47 @@ import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/fires
 import { validatePromoCode, recordAffiliateCommission, AffiliateData } from '@/lib/affiliate'
 
 type Billing = 'monthly' | 'yearly'
+type Region = 'india' | 'international'
 
 interface Plan {
     id: string
     name: string
     icon: React.ElementType
-    monthlyPrice: number
-    yearlyPrice: number
+    color: string
     points: number
-    save?: number
     badge?: string
     highlight?: boolean
     bestValue?: boolean
-    color: string
     features: string[]
-    inrPrice: number   // INR price shown and charged
+    // INR prices for India / Cashfree UPI
+    inrPrice: number
     inrYearlyPrice: number
+    // USD prices for International / Dodo
+    usdPrice: number
+    usdYearlyPrice: number
+    // Dodo product IDs created in Dodo dashboard per billing cycle
+    dodoProductIdMonthly: string
+    dodoProductIdYearly: string
 }
 
 const PLANS: Plan[] = [
     {
         id: 'starter', name: 'Starter', icon: Zap,
-        monthlyPrice: 9.99, yearlyPrice: 6.99,
+        usdPrice: 9.99, usdYearlyPrice: 6.99,
         inrPrice: 849, inrYearlyPrice: 599,
-        points: 7500, save: 36,
+        dodoProductIdMonthly: 'pdt_0NZqISos112Pvq4i26ksw',
+        dodoProductIdYearly: 'pdt_0NZqILrVbcdFWchoOG4Kb',
+        points: 7500,
         color: '#6366f1',
         features: ['7,500 points/month', 'Seedance 2.0 Fast access', 'Text to Video', 'Image to Video', 'Basic support'],
     },
     {
         id: 'popular', name: 'Popular', icon: Star,
-        monthlyPrice: 29.99, yearlyPrice: 19.99,
+        usdPrice: 29.99, usdYearlyPrice: 19.99,
         inrPrice: 2549, inrYearlyPrice: 1699,
-        points: 24000, save: 120,
+        dodoProductIdMonthly: 'pdt_0NZqI3dVVV4LMW0d1YSBs',
+        dodoProductIdYearly: 'pdt_0NZqHudgo4ZQUnSgFRPIw',
+        points: 24000,
         badge: '🔥 Most Popular',
         highlight: true,
         color: '#6366f1',
@@ -50,9 +59,11 @@ const PLANS: Plan[] = [
     },
     {
         id: 'pro', name: 'Pro', icon: Crown,
-        monthlyPrice: 59.99, yearlyPrice: 39.99,
+        usdPrice: 59.99, usdYearlyPrice: 39.99,
         inrPrice: 4999, inrYearlyPrice: 3399,
-        points: 45000, save: 240,
+        dodoProductIdMonthly: 'pdt_0NZqHmSWad7Jsxi97fIu4',
+        dodoProductIdYearly: 'pdt_0NZqHeq2S4WggUCc4Hhg2',
+        points: 45000,
         badge: '⚡ Best for Creators',
         highlight: true,
         color: '#8b5cf6',
@@ -60,9 +71,11 @@ const PLANS: Plan[] = [
     },
     {
         id: 'enterprise', name: 'Enterprise', icon: Building2,
-        monthlyPrice: 199, yearlyPrice: 139,
+        usdPrice: 199, usdYearlyPrice: 139,
         inrPrice: 16900, inrYearlyPrice: 11800,
-        points: 200000, save: 720,
+        dodoProductIdMonthly: 'pdt_0NZqHNoidVKQLsCqMAzBo',
+        dodoProductIdYearly: 'pdt_0NZqGrePUG2orIMOEQZl6',
+        points: 200000,
         bestValue: true,
         badge: '🏆 Best Value',
         color: '#14b8a6',
@@ -70,29 +83,35 @@ const PLANS: Plan[] = [
     },
 ]
 
-function PlanCard({ plan, billing, discount, onPurchase }: { plan: Plan; billing: Billing; discount: boolean; onPurchase: (plan: Plan) => void }) {
-    const originalPrice = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
-    const inrPrice = discount ? Math.floor(originalPrice * 0.80) : originalPrice
+// ─── Plan Card ───────────────────────────────────────────────────────────────
+function PlanCard({
+    plan, billing, region, discount, onPurchase,
+}: {
+    plan: Plan; billing: Billing; region: Region; discount: boolean; onPurchase: (plan: Plan) => void
+}) {
     const isHighlighted = plan.highlight || plan.bestValue
+    const isIndia = region === 'india'
+
+    const rawInr = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice
+    const inrPrice = discount ? Math.floor(rawInr * 0.80) : rawInr
+    const rawUsd = billing === 'monthly' ? plan.usdPrice : plan.usdYearlyPrice
+    const usdPrice = discount ? +(rawUsd * 0.80).toFixed(2) : rawUsd
 
     return (
         <div
             className="relative flex flex-col rounded-2xl p-6 transition-all duration-300"
             style={{
-                background: isHighlighted ? `linear-gradient(160deg, rgba(${plan.highlight ? '99,102,241' : '20,184,166'},.1) 0%, var(--bg-card) 60%)` : 'var(--bg-card)',
+                background: isHighlighted
+                    ? `linear-gradient(160deg, rgba(${plan.highlight ? '99,102,241' : '20,184,166'},.1) 0%, var(--bg-card) 60%)`
+                    : 'var(--bg-card)',
                 border: isHighlighted ? `1.5px solid ${plan.color}44` : '1px solid var(--border)',
                 boxShadow: isHighlighted ? `0 8px 32px ${plan.color}22` : 'var(--shadow-card)',
             }}
         >
-            {/* Top badge */}
             {plan.badge && (
                 <div
                     className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[11px] font-black whitespace-nowrap"
-                    style={{
-                        background: `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
-                        color: '#fff',
-                        boxShadow: `0 4px 14px ${plan.color}44`,
-                    }}
+                    style={{ background: `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`, color: '#fff', boxShadow: `0 4px 14px ${plan.color}44` }}
                 >
                     {plan.badge}
                 </div>
@@ -109,29 +128,53 @@ function PlanCard({ plan, billing, discount, onPurchase }: { plan: Plan; billing
 
             {/* Price */}
             <div className="mb-1">
-                <div className="flex items-end gap-2">
-                    {discount && (
-                        <span className="text-xl font-bold line-through" style={{ color: 'var(--text-muted)' }}>
-                            ₹{originalPrice.toLocaleString('en-IN')}
+                {isIndia ? (
+                    <div className="flex items-end gap-2">
+                        {discount && (
+                            <span className="text-xl font-bold line-through" style={{ color: 'var(--text-muted)' }}>
+                                ₹{rawInr.toLocaleString('en-IN')}
+                            </span>
+                        )}
+                        <span className="text-4xl font-black" style={{ color: discount ? '#22c55e' : 'var(--text)' }}>
+                            ₹{inrPrice.toLocaleString('en-IN')}
                         </span>
-                    )}
-                    <span className="text-4xl font-black" style={{ color: discount ? '#22c55e' : 'var(--text)' }}>
-                        ₹{inrPrice.toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-sm mb-1.5 font-semibold" style={{ color: 'var(--text-muted)' }}>/mo</span>
-                </div>
+                        <span className="text-sm mb-1.5 font-semibold" style={{ color: 'var(--text-muted)' }}>/mo</span>
+                    </div>
+                ) : (
+                    <div className="flex items-end gap-2">
+                        {discount && (
+                            <span className="text-xl font-bold line-through" style={{ color: 'var(--text-muted)' }}>
+                                ${rawUsd}
+                            </span>
+                        )}
+                        <span className="text-4xl font-black" style={{ color: discount ? '#22c55e' : 'var(--text)' }}>
+                            ${usdPrice}
+                        </span>
+                        <span className="text-sm mb-1.5 font-semibold" style={{ color: 'var(--text-muted)' }}>/mo</span>
+                    </div>
+                )}
+
                 {discount && (
                     <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[11px] font-black"
                         style={{ background: '#22c55e18', color: '#22c55e', border: '1px solid #22c55e33' }}>
                         🎉 20% OFF Applied
                     </div>
                 )}
+
                 {billing === 'yearly' ? (
                     <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>billed ₹{(plan.inrYearlyPrice * 12).toLocaleString('en-IN')}/year</span>
+                        {isIndia ? (
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                billed ₹{(plan.inrYearlyPrice * 12).toLocaleString('en-IN')}/year
+                            </span>
+                        ) : (
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                billed ${(plan.usdYearlyPrice * 12).toFixed(2)}/year
+                            </span>
+                        )}
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-black"
                             style={{ background: '#22c55e18', color: '#22c55e', border: '1px solid #22c55e33' }}>
-                            Save ₹{plan.save}/yr
+                            Save {isIndia ? `₹${Math.round((plan.inrPrice - plan.inrYearlyPrice) * 12)}/yr` : `$${((plan.usdPrice - plan.usdYearlyPrice) * 12).toFixed(0)}/yr`}
                         </span>
                     </div>
                 ) : (
@@ -175,9 +218,10 @@ function PlanCard({ plan, billing, discount, onPurchase }: { plan: Plan; billing
     )
 }
 
-
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PricingPage() {
     const [billing, setBilling] = useState<Billing>('yearly')
+    const [region, setRegion] = useState<Region>('india')
     const { user, signIn } = useAuth()
     const { show: toast } = useToast()
     const [promoInput, setPromoInput] = useState('')
@@ -186,13 +230,30 @@ export default function PricingPage() {
     const [promoLoading, setPromoLoading] = useState(false)
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
     const [userPhone, setUserPhone] = useState<string>('')
+    const [dodoLoading, setDodoLoading] = useState(false)
+
+    // Auto-detect region from URL query (after Dodo redirect back)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('dodo_success') === '1') {
+            const pts = parseInt(params.get('points') || '0', 10)
+            const planName = params.get('plan') || 'your plan'
+            if (pts > 0 && user) {
+                // Points are already credited via webhook, just show success toast
+                toast(`🎉 Payment successful! ${pts.toLocaleString()} points added to your account.`, 'success')
+            } else if (pts > 0) {
+                toast(`🎉 Payment successful! Points will be credited shortly.`, 'success')
+            }
+            // Clean up URL
+            window.history.replaceState({}, '', '/pricing')
+        }
+    }, [user])
 
     // Fetch user's real phone number saved during sign-up
     useEffect(() => {
         if (!user) return
         getDoc(doc(db, 'users', user.uid)).then(snap => {
             const phone = snap.data()?.phone ?? ''
-            // Strip +91 — Cashfree needs 10 digits only
             setUserPhone(phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10))
         }).catch(() => { })
     }, [user])
@@ -210,49 +271,47 @@ export default function PricingPage() {
         setSelectedPlan(plan)
     }
 
-    const processCheckout = async (plan: Plan, currency: 'USD' | 'INR', amount: number) => {
+    // ── Cashfree (UPI / INR) checkout ────────────────────────────────────────
+    const processCashfreeCheckout = async (plan: Plan) => {
         setSelectedPlan(null)
-        toast(`Initiating secure checkout for ${plan.name}...`, 'success')
+        toast(`Initiating UPI checkout for ${plan.name}...`, 'success')
+
+        const inrAmount = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice * 12
+        const finalAmount = promoAffiliate ? Math.floor(inrAmount * 0.80) : inrAmount
 
         try {
-            // 1. Create order on our backend — send full customer details
             const res = await fetch('/api/payment/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     planId: plan.id,
                     planName: plan.name,
-                    price: amount,
-                    currency: currency,
+                    price: finalAmount,
+                    currency: 'INR',
                     points: plan.points,
                     customer_id: user?.uid || 'anonymous',
                     customer_name: user?.displayName || 'User',
                     customer_email: user?.email || 'no-email@cutpulse.com',
-                    customer_phone: userPhone || '9999999999',  // real number from sign-up
+                    customer_phone: userPhone || '9999999999',
                 })
             })
 
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Failed to create payment session')
 
-            // 2. Load SDK
             const cashfree = await load({
                 mode: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'PRODUCTION' ? 'production' : 'sandbox',
             })
 
-            // 3. Open embedded checkout
-            const checkoutOptions = {
+            cashfree.checkout({
                 paymentSessionId: data.payment_session_id,
-                redirectTarget: "_modal",
-            }
-
-            cashfree.checkout(checkoutOptions as any).then(async (result: any) => {
+                redirectTarget: '_modal',
+            } as any).then(async (result: any) => {
                 if (result.error) {
                     toast(result.error.message || 'Payment failed or cancelled', 'error')
                 } else if (result.paymentDetails) {
                     toast('Verifying payment...', 'success')
 
-                    // 4. Verify payment with our server
                     const verifyRes = await fetch('/api/payment/verify', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -261,36 +320,29 @@ export default function PricingPage() {
                     const verifyData = await verifyRes.json()
 
                     if (verifyRes.ok && verifyData.success) {
-                        // 5. Grant Points
                         await purchasePlanCredit(user?.uid || 'anonymous', plan.name, plan.points)
                         toast(`Payment Successful! 🎉 ${plan.points.toLocaleString()} pts added.`, 'success')
 
-                        // 6. Record purchase in Firestore (for admin dashboard)
-                        const originalInr = billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice * 12
-                        const finalAmount = promoAffiliate ? Math.floor(originalInr * 0.80) : originalInr
                         await addDoc(collection(db, 'purchases'), {
                             uid: user?.uid,
                             planName: plan.name,
                             amount: finalAmount,
                             currency: 'INR',
+                            gateway: 'cashfree',
                             orderId: data.order_id,
                             billing,
                             promoCode: promoAffiliate?.promoCode ?? null,
                             createdAt: serverTimestamp(),
                         }).catch(() => { })
 
-                        // 7. Pay 20% affiliate commission if promo code was used
                         if (promoAffiliate && user?.uid) {
-                            try {
-                                await recordAffiliateCommission(promoAffiliate.uid, user.uid, originalInr)
-                            } catch { /* non-critical */ }
+                            try { await recordAffiliateCommission(promoAffiliate.uid, user.uid, inrAmount) } catch { }
                         }
 
-                        // 8. Fire Google Ads purchase conversion
                         if (typeof window !== 'undefined' && (window as any).gtag) {
                             ; (window as any).gtag('event', 'conversion', {
                                 send_to: 'AW-17985390147/9usaCJPEkIEcEMOMjYBD',
-                                value: billing === 'monthly' ? plan.inrPrice : plan.inrYearlyPrice * 12,
+                                value: finalAmount,
                                 currency: 'INR',
                                 transaction_id: data.order_id,
                             })
@@ -302,6 +354,48 @@ export default function PricingPage() {
             })
         } catch (error: any) {
             toast(error.message || 'Could not start checkout process', 'error')
+        }
+    }
+
+    // ── Dodo (Card / International / USD) checkout ───────────────────────────
+    const processDodoCheckout = async (plan: Plan) => {
+        setSelectedPlan(null)
+        setDodoLoading(true)
+        toast(`Initiating international checkout for ${plan.name}...`, 'success')
+
+        const productId = billing === 'monthly' ? plan.dodoProductIdMonthly : plan.dodoProductIdYearly
+        const usdAmount = billing === 'monthly' ? plan.usdPrice : plan.usdYearlyPrice
+
+        try {
+            const res = await fetch('/api/payment/dodo-create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    planId: plan.id,
+                    planName: plan.name,
+                    productId,
+                    price: usdAmount,
+                    points: plan.points,
+                    customer_id: user?.uid || 'anonymous',
+                    customer_email: user?.email || 'no-email@cutpulse.com',
+                    customer_name: user?.displayName || 'User',
+                    billing,
+                })
+            })
+
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Failed to create Dodo checkout session')
+
+            if (data.checkout_url) {
+                // Redirect to Dodo hosted checkout
+                window.location.href = data.checkout_url
+            } else {
+                throw new Error('No checkout URL received from Dodo')
+            }
+        } catch (error: any) {
+            toast(error.message || 'Could not start international checkout', 'error')
+        } finally {
+            setDodoLoading(false)
         }
     }
 
@@ -332,6 +426,7 @@ export default function PricingPage() {
             setGiftLoading(false)
         }
     }
+
     const handleApplyPromo = async () => {
         if (!promoInput.trim()) return
         setPromoError('')
@@ -352,62 +447,88 @@ export default function PricingPage() {
         }
     }
 
+    const isIndia = region === 'india'
 
     return (
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '32px 24px 40px', position: 'relative' }}>
 
-            {/* Payment Method Modal */}
+            {/* ── Payment Method Modal ──────────────────────────────────────── */}
             {selectedPlan && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-                    <div className="w-full max-w-sm rounded-2xl p-6 relative transition-all" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}>
+                    <div className="w-full max-w-sm rounded-2xl p-6 relative transition-all"
+                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}>
                         <button onClick={() => setSelectedPlan(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
                             <X size={20} />
                         </button>
 
-                        <h2 className="text-xl font-black mb-1" style={{ color: 'var(--text)' }}>Choose Method</h2>
-                        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Checkout securely for the {selectedPlan.name} plan.</p>
+                        <h2 className="text-xl font-black mb-1" style={{ color: 'var(--text)' }}>Choose Payment Method</h2>
+                        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                            Secure checkout for the <strong style={{ color: 'var(--text)' }}>{selectedPlan.name}</strong> plan.
+                        </p>
 
                         <div className="flex flex-col gap-3">
+                            {/* Dodo – International / Card / USD */}
                             <button
-                                disabled
-                                className="w-full relative flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200 group opacity-50 cursor-not-allowed" style={{ borderColor: 'var(--border)', background: 'var(--bg-input)' }}
+                                onClick={() => processDodoCheckout(selectedPlan)}
+                                disabled={dodoLoading}
+                                className="w-full relative flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200"
+                                style={{ borderColor: 'var(--border)', background: 'var(--bg-input)' }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = 'rgba(99,102,241,0.07)' }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-input)' }}
                             >
                                 <div>
                                     <div className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
-                                        Global Checkout
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-black whitespace-nowrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>COMING SOON</span>
+                                        <Globe size={14} style={{ color: '#6366f1' }} />
+                                        International Cards
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-black whitespace-nowrap"
+                                            style={{ background: '#6366f118', border: '1px solid #6366f144', color: '#6366f1' }}>
+                                            VISA / MC / AMEX
+                                        </span>
                                     </div>
-                                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Cards & PayPal</div>
+                                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                        Powered by Dodo Payments · No forex fees
+                                    </div>
                                 </div>
-                                <div className="font-black text-sm" style={{ color: 'var(--text-muted)' }}>Not Available</div>
+                                <div className="font-black text-lg" style={{ color: 'var(--text)' }}>
+                                    ${billing === 'monthly' ? selectedPlan.usdPrice : selectedPlan.usdYearlyPrice}
+                                </div>
                             </button>
 
+                            {/* Cashfree – UPI / INR */}
                             <button
-                                onClick={() => {
-                                    const inrAmount = billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice * 12
-                                    processCheckout(selectedPlan, 'INR', inrAmount)
-                                }}
-                                className="w-full relative flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200 group" style={{ borderColor: 'var(--border)', background: 'var(--bg-input)' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#14b8a6'; e.currentTarget.style.background = 'rgba(20,184,166,0.05)' }}
-                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-input)' }}
+                                onClick={() => processCashfreeCheckout(selectedPlan)}
+                                className="w-full relative flex items-center justify-between p-4 rounded-xl border text-left transition-all duration-200"
+                                style={{ borderColor: 'var(--border)', background: 'var(--bg-input)' }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#14b8a6'; e.currentTarget.style.background = 'rgba(20,184,166,0.05)' }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-input)' }}
                             >
                                 <div>
                                     <div className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                                        <IndianRupee size={14} style={{ color: '#14b8a6' }} />
                                         Pay via UPI (India)
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-black whitespace-nowrap" style={{ background: '#14b8a618', border: '1px solid #14b8a644', color: '#14b8a6' }}>POPULAR</span>
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-black whitespace-nowrap"
+                                            style={{ background: '#14b8a618', border: '1px solid #14b8a644', color: '#14b8a6' }}>
+                                            POPULAR
+                                        </span>
                                     </div>
-                                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>UPI / Net Banking / Cards — Zero forex fees</div>
+                                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                        UPI / Net Banking / Debit Cards — Zero forex fees
+                                    </div>
                                 </div>
                                 <div className="font-black text-lg" style={{ color: 'var(--text)' }}>
                                     ₹{(billing === 'monthly' ? selectedPlan.inrPrice : selectedPlan.inrYearlyPrice * 12).toLocaleString('en-IN')}
                                 </div>
                             </button>
                         </div>
+
+                        <p className="text-center text-[10px] mt-4" style={{ color: 'var(--text-muted)' }}>
+                            🔒 256-bit SSL encrypted · Payments processed securely
+                        </p>
                     </div>
                 </div>
             )}
 
-            {/* ── Pointer glow ─────────────────────────────────── */}
+            {/* Pointer glow */}
             <div className="pointer-events-none fixed inset-0" style={{ zIndex: 0 }}>
                 <div className="absolute top-[-5%] left-[30%] w-[500px] h-[350px] rounded-full opacity-[0.06]"
                     style={{ background: 'radial-gradient(ellipse, #6366f1, transparent 70%)', filter: 'blur(80px)' }} />
@@ -433,7 +554,41 @@ export default function PricingPage() {
                     </p>
                 </div>
 
-                {/* Toggle */}
+                {/* ── Region Toggle (India INR  ↔  International USD) ── */}
+                <div className="flex justify-center mb-6">
+                    <div className="flex items-center rounded-xl p-1 gap-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                        <button
+                            onClick={() => setRegion('india')}
+                            className="px-5 py-2 rounded-lg text-sm font-black transition-all duration-200 flex items-center gap-2"
+                            style={region === 'india'
+                                ? { background: '#14b8a6', color: '#fff', boxShadow: '0 4px 12px rgba(20,184,166,.3)' }
+                                : { color: 'var(--text-muted)', background: 'transparent' }
+                            }
+                        >
+                            🇮🇳 India
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black"
+                                style={{ background: region === 'india' ? 'rgba(255,255,255,.25)' : '#14b8a618', color: region === 'india' ? '#fff' : '#14b8a6' }}>
+                                ₹ INR · UPI
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setRegion('international')}
+                            className="px-5 py-2 rounded-lg text-sm font-black transition-all duration-200 flex items-center gap-2"
+                            style={region === 'international'
+                                ? { background: 'var(--indigo)', color: '#fff', boxShadow: '0 4px 12px var(--indigo-glow)' }
+                                : { color: 'var(--text-muted)', background: 'transparent' }
+                            }
+                        >
+                            🌍 International
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black"
+                                style={{ background: region === 'international' ? 'rgba(255,255,255,.25)' : 'var(--indigo-light)', color: region === 'international' ? '#fff' : '#a5b4fc' }}>
+                                $ USD · Card
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Billing toggle */}
                 <div className="flex justify-center mb-10">
                     <div className="flex items-center rounded-xl p-1 gap-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                         {(['monthly', 'yearly'] as Billing[]).map(b => (
@@ -461,10 +616,20 @@ export default function PricingPage() {
                     </div>
                 </div>
 
+                {/* Info strip below region toggle */}
+                <div className="flex justify-center mb-8">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold"
+                        style={{ background: isIndia ? '#14b8a610' : '#6366f110', border: `1px solid ${isIndia ? '#14b8a633' : '#6366f133'}`, color: isIndia ? '#14b8a6' : '#a5b4fc' }}>
+                        {isIndia
+                            ? '🇮🇳 Prices shown in ₹ INR · Pay with UPI, Net Banking, or Cards via Cashfree'
+                            : '🌍 Prices shown in $ USD · Pay with Visa, Mastercard, or Amex via Dodo Payments'}
+                    </div>
+                </div>
+
                 {/* Plan cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-4">
                     {PLANS.map(plan => (
-                        <PlanCard key={plan.id} plan={plan} billing={billing} discount={!!promoAffiliate} onPurchase={handlePurchase} />
+                        <PlanCard key={plan.id} plan={plan} billing={billing} region={region} discount={!!promoAffiliate} onPurchase={handlePurchase} />
                     ))}
                 </div>
 
@@ -542,6 +707,8 @@ export default function PricingPage() {
                         )}
                     </div>
                 </div>
+
+                {/* How points work */}
                 <div className="mt-12 rounded-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                     <h3 className="font-black text-base mb-1" style={{ color: 'var(--text)' }}>How points work</h3>
                     <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Points are consumed per second of video generated. You always see exact costs before you generate.</p>
@@ -566,7 +733,8 @@ export default function PricingPage() {
                     <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                         Questions? Email us at{' '}
                         <a href="mailto:support@cutpulse.com" style={{ color: 'var(--indigo)' }}>support@cutpulse.com</a>
-                        {' '}· Unused points do not roll over · All prices in USD
+                        {' '}· Unused points do not roll over ·{' '}
+                        {isIndia ? 'Prices in ₹ INR for Indian customers' : 'Prices in $ USD for international customers'}
                     </p>
                 </div>
             </div>

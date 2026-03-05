@@ -16,12 +16,14 @@
         "axios": "^1.13.6",
         "cashfree-pg": "^5.1.0",
         "cloudinary": "^2.9.0",
+        "dodopayments": "^2.23.0",
         "firebase": "^12.9.0",
         "firebase-admin": "^13.7.0",
         "lucide-react": "^0.469.0",
         "next": "^16.1.6",
         "react": "^19.0.0",
-        "react-dom": "^19.0.0"
+        "react-dom": "^19.0.0",
+        "standardwebhooks": "^1.0.0"
     },
     "devDependencies": {
         "@types/node": "^20",
